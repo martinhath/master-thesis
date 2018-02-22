@@ -1,0 +1,65 @@
+\documentclass[b5paper]{report}
+\usepackage[lmargin=25mm,rmargin=25mm,tmargin=27mm,bmargin=30mm]{geometry}
+
+\usepackage[toc]{appendix}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta}
+
+\usepackage{libertine}
+\usepackage{inconsolata}
+\usepackage{libertinust1math}
+\usepackage[T1]{fontenc}
+\catcode`\_=12
+
+\graphicspath{{./graphics/}}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \begin{figure}[h]
+    \centering
+    \includegraphics{hovedlogo_eng.pdf}
+  \end{figure}
+  \vspace{1.5cm}
+  {\Large TDT4569: masd \par}
+  \vspace{1cm}
+  {\huge Tittel her\par}
+  \vspace{2cm}
+  {\Large\itshape{}Martin Hafskjold Thoresen\par}
+  \vfill
+  supervised by\par
+  \large Magnus Lie Hetland\\
+  \vspace{1cm}
+  {\large \today\\}
+\end{titlepage}
+
+\input{macros.tex}
+
+\begin{abstract}
+  abstract
+\end{abstract}
+
+\tableofcontents
+
+\chapter{Introduction}
+
+hey hello\cite{linus}
+
+
+\bibliographystyle{acm}
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliography{sources}
+
+\begin{appendices}
+  \chapter{Her ja}
+\end{appendices}
+
+\end{document}
