@@ -1,0 +1,9 @@
+\chapter{CMR}
+
+The high level idea of the system is for the consolidator to have easy access to all roots in every
+thread. With this information, the problem of identifying garbage is equivalent to reachability
+analysis in a graph in which the vertices are \code{struct}s and the edges are pointers.
+\todo{image here}
+
+The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which
+a pointer to shared memory is stored.
