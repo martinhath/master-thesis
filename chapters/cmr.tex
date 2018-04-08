@@ -5,5 +5,37 @@ thread. With this information, the problem of identifying garbage is equivalent 
 analysis in a graph in which the vertices are \code{struct}s and the edges are pointers.
 \todo{image here}
 
-The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which
-a pointer to shared memory is stored.
+The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
+pointer to shared memory is stored. By having access to all \code{Guard}s, CMR have access to all
+roots. \code{Guard}s are similar to hazard pointers, except that no thread synchronization is
+performed when making new or updating existing \code{Guard}s, which reduces the overhead
+significantly.
+
+\vspace{2cm}
+
+\begin{definition}[Guard]
+  A \emph{Guard} is an object that contains a \emph{root}. The Guard is non-movable in memory.
+  All roots are stored in Guards.
+\end{definition}
+
+A \emph{Guard} protects the memory it points to from being reclaimed. Lemma~\ref{lm:guard-valid}
+follows.
+
+\begin{lemma}\label{lm:guard-valid}
+  If a Guard is not $\bot$, it points to valid memory.
+\end{lemma}
+
+We define operations on the Guard:
+
+
+\begin{equation}\label{eq:make-guard}
+  \text{make-guard\:::\:} () \to Guard
+\end{equation}
+\begin{equation}\label{eq:load-atomic}
+  \text{load-atomic\:::\:} (Guard, Atomic) \to NullablePtr
+\end{equation}
+
+\begin{description}
+  \item[make-guard] Construct a new Guard object.
+  \item[\code{alloc\@(mem)}] Allocate and initailize memory with the given data.
+\end{description}

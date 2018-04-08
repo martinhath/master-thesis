@@ -1,22 +1,40 @@
 \documentclass[b5paper]{report}
 \usepackage[lmargin=25mm,rmargin=25mm,tmargin=27mm,bmargin=30mm]{geometry}
 
+\usepackage[T1]{fontenc}
 \usepackage[toc]{appendix}
-\usepackage{graphicx}
-\usepackage{subcaption}
-\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amsthm}
 \usepackage{color}
-\usepackage{xcolor}
-\usepackage{tikz}
+\usepackage{graphicx}
 \usepackage{hyperref}
-\usepackage{parskip}
-\usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta}
-
+\usepackage{libertinust1math}
 \usepackage{libertine}
 \usepackage{inconsolata}
-\usepackage{libertinust1math}
-\usepackage[T1]{fontenc}
+\usepackage{listings}
+\usepackage{parskip}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta}
+\usepackage{xcolor}
 \catcode`\_=12
+
+% Hack to make parskip and amsthm go well together.
+\begingroup
+    \makeatletter
+    \@for\theoremstyle:=definition,remark,plain\do{%
+        \expandafter\g@addto@macro\csname th@\theoremstyle\endcsname{%
+            \addtolength\thm@preskip\parskip
+            }}
+\endgroup
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
 
 \graphicspath{{./graphics/}}
 
