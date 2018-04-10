@@ -12,7 +12,7 @@
 \usepackage{libertine}
 \usepackage{inconsolata}
 \usepackage{listings}
-\usepackage{parskip}
+% \usepackage{parskip}
 \usepackage{subcaption}
 \usepackage{tikz}
 \usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta}
@@ -20,13 +20,13 @@
 \catcode`\_=12
 
 % Hack to make parskip and amsthm go well together.
-\begingroup
-    \makeatletter
-    \@for\theoremstyle:=definition,remark,plain\do{%
-        \expandafter\g@addto@macro\csname th@\theoremstyle\endcsname{%
-            \addtolength\thm@preskip\parskip
-            }}
-\endgroup
+% \begingroup
+%     \makeatletter
+%     \@for\theoremstyle:=definition,remark,plain\do{%
+%         \expandafter\g@addto@macro\csname th@\theoremstyle\endcsname{%
+%             \addtolength\thm@preskip\parskip
+%             }}
+% \endgroup
 
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[chapter]
@@ -71,8 +71,9 @@
 
 hey hello\cite{linus}
 
-\input{chapters/cmr.tex}
+\input{chapters/background.tex}
 
+\input{chapters/cmr.tex}
 
 \bibliographystyle{acm}
 \addcontentsline{toc}{chapter}{Bibliography}
