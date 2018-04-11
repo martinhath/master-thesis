@@ -15,6 +15,44 @@ significantly.
 
 \vspace{2cm}
 
+We define an abstract model of the system, and prove its correctness.
+The computational model we are working with is the RAM machine, and assume that
+the reader is familiar with it\footnote{\todo{Have def.\ in background?}}.
+
+\note{here we must know what allocation is, what freeing is, and how we think
+about memory.}
+
+We would like our system to provide $n$ guarantees:
+
+\begin{enumerate}
+  \item No memory reads should be outside all allocated memory segments.
+  \item No memory read should be in a memory segment that has been freed.
+  \item No freed pointer should be freed again.
+\end{enumerate}
+
+We call a pointer that points to any part of an allocated memory segment \emph{valid}.
+
+
+We start by defining some central concepts.
+\begin{definition}[allocation]
+  \emph{Allocation} is a function $\mathbb{Z} \to \mathbb{Z}$ that takes a
+  size and returns a pointer. \note{it this really needed?}
+\end{definition}
+
+
+The system works in \emph{passes}; once in a while, execution of a thread is ``hijacked'' to not run
+user code, but garbage collection. When the work is done the thread returns to the user code it was
+originally running. All free calls happen inside a pass, and only one thread is in a path at any
+time. Lemma~\ref{lm:valid-outside-pass} follows:
+\begin{lemma}\label{lm:valid-outside-pass}
+  Let $t\sb{1}$ and $t\sb{2}$ be time instants in the program, and let $t\sb{1} < t\sb{2}$.
+  If a pointer $p$ is valid at $t\sb{1}$, and no pass happens in the time interval
+  $[t\sb{1}, t\sb{2}]$, then $p$ is valid at $t\sb{2}$.
+\end{lemma}
+
+
+\vspace{2cm}
+
 \todo{define ``Rust memory'' and shared memory}
 
 \section{some name here}
@@ -97,7 +135,20 @@ have the same value. $p \neq \bot$, so this follows by Theorem~\ref{thm:guard-va
 \end{proof}
 
 
+
+
 \section{Implementation}
+
+The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
+snapshot of the entire memory space of the process. Having this we can identify the roots, and run
+reachability analysis, knowing that nothing will change while we are looking.
+
+Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
+\emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
+garbage collection pass is detectable. Then the thread writes out the address of a thread local
+list of allocated addresses, such that the consolidator can collect all addresses that has been
+allocated since the last consolidation. At last, the threads wait for the consolidator to say that
+they may return to their execution. \note{why is this required?}
 
 \note{Add implementation details here}
 
@@ -105,7 +156,7 @@ have the same value. $p \neq \bot$, so this follows by Theorem~\ref{thm:guard-va
   set to \code{true} in the signal handler. Note that this function does not support being called
   recursively.
 \begin{figure}[ht]
-\begin{lstlisting}
+  \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A]
 fn atomic(f: F):
   loop:
     WAS_SIGNALED = false
@@ -114,3 +165,31 @@ fn atomic(f: F):
 \end{lstlisting}
 \caption{Pseudocode of $atomic$}
 \end{figure}
+
+\begin{theorem}
+  If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
+  Definition~\ref{def:atomic}.
+\end{theorem}
+\begin{proof}
+  \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
+  \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
+  signals any thread, it means that there was a consolidator in this time interval. We are only
+  returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
+  successfully called without overlapping with a pass.
+\end{proof}
+Note that it is possible that the consolidator was initiated before entering the \code{atomic}
+function, but that they only got execution time after \code{A3}.
+\begin{lemma}
+  If the consolidator is lock-free, then \code{atomic} is lock-free.
+\end{lemma}
+\begin{proof}
+  If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
+  and is lock-free, it will either make progress, or some other thread is making progress. In
+  either case, the system makes progress.
+  \note{this is a terrible proof}
+\end{proof}
+
+It is important that the function given to \code{atomic} can be called multiple times without
+breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
+usually the case.
+
