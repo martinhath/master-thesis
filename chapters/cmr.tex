@@ -1,47 +1,103 @@
 \chapter{CMR}
 
-\section{Overview}
+We have named the system \emph{CMR}, short for \emph{Concurrent Memory Reclamation}. The system is
+implemented as a Rust library \code{cmr}. We have also implemented four data structures, a stack,
+queue, list, and hasmap, in the \code{cmr-data-structures} library, which uses \code{cmr}
+internally for memory reclamation.
 
-The high level idea of the system is for the consolidator to have easy access to all roots in every
-thread. With this information, the problem of identifying garbage is equivalent to reachability
-analysis in a graph in which the vertices are \code{struct}s and the edges are pointers.
-\todo{image here}
+This chapter is organized as follows:
+Section~\ref{sec:cmr-overview} gives an overview of the system as a whole, and defines the problem
+we want to solve.
+Section~\ref{sec:cmr-primitives} defines the primitives of the system, how they interact, and
+proves their correctness.
+\todo{bla}
 
-The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
-pointer to shared memory is stored. By having access to all \code{Guard}s, CMR have access to all
-roots. \code{Guard}s are similar to hazard pointers, except that no thread synchronization is
-performed when making new or updating existing \code{Guard}s, which reduces the overhead
-significantly.
-
-\vspace{2cm}
+\section{Problem Definition}
 
 We define an abstract model of the system, and prove its correctness.
 The computational model we are working with is the RAM machine, and assume that
 the reader is familiar with it\footnote{\todo{Have def.\ in background?}}.
 
+We start by defining some central concepts.
+Memory $M$ is the set of all addresses in the address space of the machine.
+It is a disjoint set $M = A \cap F$ where $A$ is the set of allocated memory, and $F$ is the
+remaining of the memory space.
+A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $[addr, addr + size)$.
+We call memory that is in an allocated block \emph{valid memory}.
+
+
+
 \note{here we must know what allocation is, what freeing is, and how we think
 about memory.}
 
-We would like our system to provide $n$ guarantees:
 
-\begin{enumerate}
-  \item No memory reads should be outside all allocated memory segments.
-  \item No memory read should be in a memory segment that has been freed.
-  \item No freed pointer should be freed again.
-\end{enumerate}
+We first define three memory hazards:
 
-We call a pointer that points to any part of an allocated memory segment \emph{valid}.
-
-
-We start by defining some central concepts.
-\begin{definition}[allocation]
-  \emph{Allocation} is a function $\mathbb{Z} \to \mathbb{Z}$ that takes a
-  size and returns a pointer. \note{it this really needed?}
+\begin{definition}[invalid-read]
+  Memory that has never been allocated is read.
 \end{definition}
 
+\begin{definition}[use-after-free]
+  Memory that was allocated and then freed is read.
+\end{definition}
 
-The system works in \emph{passes}; once in a while, execution of a thread is ``hijacked'' to not run
-user code, but garbage collection. When the work is done the thread returns to the user code it was
+\begin{definition}[double-free]
+  A block was freed twice without being allocated in between.
+\end{definition}
+
+We would like our system to guarantee that neither of the three happens.
+
+\section{Overview\label{sec:cmr-overview}}
+
+The high level idea of the system is for the consolidator to have easy access to all roots in every
+thread. With this information, the problem of identifying garbage is equivalent to reachability
+analysis in a graph in which the vertices are data types in the program and the edges are pointers.
+ Having this, we can
+identify the reachable segments $R \subseteq M$ and the garbage $G = M \setminus R$.
+
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}{0.45\textwidth}
+    \begin{lstlisting}
+a = Node { value = 4, next = null }
+b = Node { value = 8, next = a }
+list = [a, b, 3]
+    \end{lstlisting}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.45\textwidth}
+    \input{figures/graph-reachability}
+  \end{subfigure}
+  \caption{Code sample (left) with possible heap layout (right). If the black filled node is the
+  only root, the black nodes are reachable, and the gray nodes are not. Note that one node (z)
+  points to a reachable node, but is itself not reachable.}
+\end{figure}
+
+Performing the reachability analisys is not straight forwars, even when we have all roots in the
+system. Consider a mark-and-sweep approach, where we follow pointers and keep track of memory
+locations that we have seen before. Since we are running a concurrent system, pointers might be
+updated while we scan, so that two pointer values might be swapped after looking at either of them,
+making the other value invisible to the system, and causing memory to be registered as unreachable,
+when it is not.
+
+\begin{figure}[ht]
+  \centering
+  \input{figures/pointer-swap}
+  \caption{Illustration of how mutation in the reachability graph can make memory (b) appear as
+  non-reachable. After we have looked at the roots left child, but before reading its right, the
+  nodes child pointers are swapped. Since we cannot detect this (the two pointers could have been
+  the same), we see (a) twice and do not see (b).}
+\end{figure}
+
+In order to handle mutation problems, we obtain a snapshot of the entire processes memory, by
+freezing all threads, reading their guards, and forking the process. Thus, we have a snapshot of
+the entire memory of the program, in which we also have all roots. Now the reachability analysis is
+simpler, since there will be only one thread in the forked process, namely the garbage collecting
+thread.
+
+The system works in \emph{passes}; once in a while, execution of a thread is ``hijacked'' to
+run a garbage collection pass instead of running the user code.
+When the work is done the thread returns to the user code it was
 originally running. All free calls happen inside a pass, and only one thread is in a path at any
 time. Lemma~\ref{lm:valid-outside-pass} follows:
 \begin{lemma}\label{lm:valid-outside-pass}
@@ -51,11 +107,18 @@ time. Lemma~\ref{lm:valid-outside-pass} follows:
 \end{lemma}
 
 
-\vspace{2cm}
+
+
 
 \todo{define ``Rust memory'' and shared memory}
 
-\section{some name here}
+\section{Primitives of CMR\label{sec:cmr-primitives}}
+
+The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
+pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By
+having access to all \code{Guard}s, CMR have access to all roots. \code{Guard}s are similar to
+hazard pointers, except that no thread synchronization is performed when making new or updating
+existing \code{Guard}s, which reduces the overhead significantly.
 
 CMR has four types that are essential to understanding how we manage safe access to shared memory:
 \emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
