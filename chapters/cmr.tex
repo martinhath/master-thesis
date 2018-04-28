@@ -22,7 +22,8 @@ We start by defining some central concepts.
 Memory $M$ is the set of all addresses in the address space of the machine.
 It is a disjoint set $M = A \cap F$ where $A$ is the set of allocated memory, and $F$ is the
 remaining of the memory space.
-A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $[addr, addr + size)$.
+A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $\left[addr, addr +
+size\right)$.
 We call memory that is in an allocated block \emph{valid memory}.
 
 In Rust, most memory management is handled automatically by the compiler. CMR utilizes this by
@@ -44,11 +45,14 @@ shared memory, so that we don't have to scan through the strucutre, as it may be
 \begin{figure}
   \centering
   \input{figures/rust-shared-mem}
-  \caption{Example of memory layout showing Rust memory (brown) and shared memory (red). Types in
+  \caption{Example of memory layout showing Rust memory (beige) and shared memory (red). Types in
   shared memory may contain pointers to Rust memory, and vice versa.\label{fig:rust-shared-mem}}
 \end{figure}
 
-We first define three memory hazards:
+\subsection{Memory Hazards}
+
+There are a number of possible hazards when managing memory manually. We first define three
+hazards:
 
 \begin{definition}[invalid-read]
   Memory that has never been allocated is read.
@@ -62,7 +66,16 @@ We first define three memory hazards:
   A block is freed twice without being allocated in between.
 \end{definition}
 
-We would like our system to guarantee that neither of the three happens.
+invalid-read is the least frequent of the three, as it requires the programmer to conjure a pointer
+out of thin air, since it has never been allocated in the system.\ use-after-free is the most
+hazarous of the three, as program behaviour is often undefined when freed values are read \todo{ref
+UB}; in many language implementations undefined behavious means that the entire program is illegal,
+and one cannot assume anything about its behaviour.\ double-free is technically not a memory
+hazard, as the operating system can check for the validity of pointers that are freed. This is
+often not done in practice, and POSIXs definition of \code{free} states that it is undefined
+behaviour to pass a non-allocated pointer to \code{free}.  \todo{check this.}
+
+We will show that CMR guarantees that neither of the three hazards is possible in safe Rust.
 
 \section{Overview\label{sec:cmr-overview}}
 
@@ -145,14 +158,14 @@ on_freeze():
 \section{Primitives of CMR\label{sec:cmr-primitives}}
 
 The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
-pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By
-having access to all \code{Guard}s, CMR have access to all roots. \code{Guard}s are similar to
-hazard pointers, except that no thread synchronization is performed when making new or updating
-existing \code{Guard}s, which reduces the overhead significantly.
+pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By having
+access to all \code{Guard}s, CMR have access to all roots. \code{Guard}s are similar to hazard
+pointers (Section~\ref{sec:hazard-pointers}), except that no thread synchronization is performed
+when making new or updating existing \code{Guard}s, which reduces the overhead significantly.
 
 CMR has four types that are essential to understanding how we manage safe access to shared memory:
 \emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
-same type, which is omitted for brevity. We look at each type in turn.
+type of the data they protect; this is omitted for brevity. We look at each type in turn.
 
 \begin{definition}[Guard]
   A \emph{Guard} is an object that contains a \emph{root}. The Guard is non-movable in memory.
@@ -165,36 +178,96 @@ same type, which is omitted for brevity. We look at each type in turn.
 
 \begin{definition}[NullablePtr]
   \emph{NullablePtr} is an immutable pointer that may be $\bot$. It is obtained through a Guard.
-  When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable thoughout the lifetime of
-  $p$.
+  When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable thoughout the
+  lifetime\footnote{We use the same meaning of lifetime as Rust (Section~\ref{sec:rust-lifetimes})}
+  of $p$.
 \end{definition}
 
 \begin{definition}[Ptr]
   \emph{Ptr} is an immutable pointer that may \emph{not} be $\bot$. Its semantics are similar to
-  that of NullablePtr, but the two are distinct types for simplification. All accesses to shared
-  memory is through a Ptr.
+  that of NullablePtr, but the two are distinct types for simplification of the null-case. All
+  accesses to shared memory is through a Ptr.
 \end{definition}
 
+These four types are the building blocks of writing concurrent structures in CMR\@. All pointers
+are stored in an Atomic, and loading an atomic yields a NullablePtr, which may be promoted to a
+Ptr, if it is not null. The Ptr provides access to the data the pointer points to.
+In addition to having the types, CMR defines a number of operations that acts on these types.
+We look at each type in turn, and define their operations.
 
-Having defined the types, we define the operations on the types:
-
-\begin{definition}[Common operations]
+\subsection{Guard}
+A Guard can be constructed with the initial value of $\bot$ with \emph{make-guard}
 \begin{equation}\label{eq:make-guard}
   \text{make-guard\:::\:} () \to Guard
 \end{equation}
-\emph{make-guard} constructs a new Guard variable containing $\bot$.
+It can also copy the value of another Guard with \emph{copy-guard}.
+\begin{equation}\label{eq:copy-guard}
+  \text{copy-guard\:::\:} (Guard, Guard) \to ()
+\end{equation}
 
+
+\subsection{Atomic}
+
+Atomic is a regular atomic pointer variable, supporing operations such as \emph{store}, and
+\emph{compare-and-swap}.
+\begin{equation}\label{eq:atomic-store}
+  \text{store\:::\:} (Atomic, NullablePtr) \to ()
+\end{equation}
+\begin{equation}\label{eq:atomic-cas}
+  \text{compare-and-swap\:::\:} (Atomic, NullablePtr, NullablePtr) \to NullablePtr
+\end{equation}
+
+It is not safe to \emph{load} an atomic, as there is no guarantee that the
+pointer read is protected by a guard. Instead, CMR defines \emph{load-atomic}, which loads an
+Atomic into a Guard, and returns the value read as a NullablePtr:
 \begin{equation}\label{eq:load-atomic}
   \text{load-atomic\:::\:} (Guard, Atomic) \to NullablePtr
 \end{equation}
-\emph{load-atomic} reads the atomic vairable, protects it with the Guard, and return a NullablePtr
-to the value read.
-\end{definition}
 
+\subsection{NullablePtr}
+
+The NullablePtr is just a convenience type in order to not have to handle the $\bot$ case of all
+pointers. Whether the pointer is null or not can be checked:
+
+\begin{equation}\label{eq:nullable-is-null}
+  \text{is-null\:::\:} (NullablePtr) \to bool
+\end{equation}
+
+CMR also supports using the lower bits of a pointer to store extra information (a \emph{tag}). This
+is useful for implementing deletion in linked lists, among other things.  The tag is read with
+\emph{tag},
+\begin{equation}\label{eq:ptr-tag}
+  \text{tag\:::\:} (NullablePtr) \to int
+\end{equation}
+and a new NullablePtr can be constructed with a given tag using \emph{with-tag}.
+\begin{equation}\label{eq:ptr-with-tag}
+  \text{with-tag\:::\:} (NullablePtr, int) \to NullablePtr
+\end{equation}
+The actual address is obtained through \emph{addr}
+\begin{equation}\label{eq:ptr-with-tag}
+  \text{addr\:::\:} (NullablePtr) \to int
+\end{equation}
+
+\subsection{Ptr}
+
+Ptr may be used in the place of NullablePtr, since is it just a special case of it. All functions
+that take a NullablePtr can also take a Ptr.
+
+
+\subsection{Other actions}
+
+We also need a few other operations to make sure that the implementation of funcions are valid.
+For instance, in load-atomic there is a window in between reading the atomic ptr and storing it in
+the guard in which a reclamation pass may have happened. \emph{atomic} makes sure that this is
+safe:
 \begin{definition}\label{def:atomic}
   $\text{atomic\:::\:} (() \to T) \to T$ is a higher order function that runs a function without
   a reclamation pass happening during the functions execution.
 \end{definition}
+
+
+\clearpage
+
 
 
 
@@ -285,4 +358,3 @@ function, but that they only got execution time after \code{A3}.
 It is important that the function given to \code{atomic} can be called multiple times without
 breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
 usually the case.
-
