@@ -25,11 +25,28 @@ remaining of the memory space.
 A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $[addr, addr + size)$.
 We call memory that is in an allocated block \emph{valid memory}.
 
+In Rust, most memory management is handled automatically by the compiler. CMR utilizes this by
+distinguishing between \emph{Rust memory} and \emph{Shared memory}. Rust memory is all memory that
+is managed by the compiler, for instance through smart pointers. Shared memory is the remaining
+memory, which is managed by CMR\@. Note that there is a thin line in between the two types: types may
+be handled by CMR, but they themselves may contain smart pointers which is then handled by Rust.
+For instance, a node in a linked list implemented using CMR may contain data that contains a smart
+pointer. When the node is freed, its destructor is ran, and the smart pointers cleanup is handled
+just as if it was not in shared memory (see Figure~\ref{fig:rust-shared-mem}).
+
+Since Rust manages Rust memory, we only need to do reachability queries in the shared memory
+subset. For many applications, this is a much smaller space than the total memory. It is also
+possible to have the data types that are referenced from shared memory but stored in Rust memory
+(like the binary tree in Figure~\ref{fig:rust-shared-mem}) know whether they have pointers to
+shared memory, so that we don't have to scan through the strucutre, as it may be arbitrary large.
 
 
-\note{here we must know what allocation is, what freeing is, and how we think
-about memory.}
-
+\begin{figure}
+  \centering
+  \input{figures/rust-shared-mem}
+  \caption{Example of memory layout showing Rust memory (brown) and shared memory (red). Types in
+  shared memory may contain pointers to Rust memory, and vice versa.\label{fig:rust-shared-mem}}
+\end{figure}
 
 We first define three memory hazards:
 
@@ -42,7 +59,7 @@ We first define three memory hazards:
 \end{definition}
 
 \begin{definition}[double-free]
-  A block was freed twice without being allocated in between.
+  A block is freed twice without being allocated in between.
 \end{definition}
 
 We would like our system to guarantee that neither of the three happens.
@@ -73,41 +90,54 @@ list = [a, b, 3]
   points to a reachable node, but is itself not reachable.}
 \end{figure}
 
-Performing the reachability analisys is not straight forwars, even when we have all roots in the
+Performing the reachability analisys is not straight forwards, even when we have all roots in the
 system. Consider a mark-and-sweep approach, where we follow pointers and keep track of memory
 locations that we have seen before. Since we are running a concurrent system, pointers might be
 updated while we scan, so that two pointer values might be swapped after looking at either of them,
 making the other value invisible to the system, and causing memory to be registered as unreachable,
-when it is not.
+when it is not. See Figure~\ref{fig:pointer-swap} for an example.
 
 \begin{figure}[ht]
   \centering
   \input{figures/pointer-swap}
-  \caption{Illustration of how mutation in the reachability graph can make memory (b) appear as
+  \caption{Illustration of how mutation in the reachability graph can make a block $b$ appear as
   non-reachable. After we have looked at the roots left child, but before reading its right, the
   nodes child pointers are swapped. Since we cannot detect this (the two pointers could have been
-  the same), we see (a) twice and do not see (b).}
+  the same), we see $a$ twice and do not see $b$.\label{fig:pointer-swap}}
 \end{figure}
 
-In order to handle mutation problems, we obtain a snapshot of the entire processes memory, by
-freezing all threads, reading their guards, and forking the process. Thus, we have a snapshot of
+In order to handle mutation problems, we obtain a snapshot of the entire processes memory by
+freezing all threads, reading their roots, and forking the process. Thus, we have a snapshot of
 the entire memory of the program, in which we also have all roots. Now the reachability analysis is
 simpler, since there will be only one thread in the forked process, namely the garbage collecting
-thread.
+thread. Listing~\ref{lst:cmr} shows pseudocode for both the reclaiming thread and the other threads
+for this procedure.
 
-The system works in \emph{passes}; once in a while, execution of a thread is ``hijacked'' to
-run a garbage collection pass instead of running the user code.
-When the work is done the thread returns to the user code it was
-originally running. All free calls happen inside a pass, and only one thread is in a path at any
-time. Lemma~\ref{lm:valid-outside-pass} follows:
-\begin{lemma}\label{lm:valid-outside-pass}
-  Let $t\sb{1}$ and $t\sb{2}$ be time instants in the program, and let $t\sb{1} < t\sb{2}$.
-  If a pointer $p$ is valid at $t\sb{1}$, and no pass happens in the time interval
-  $[t\sb{1}, t\sb{2}]$, then $p$ is valid at $t\sb{2}$.
-\end{lemma}
-
-
-
+\begin{figure}[ht]
+  \begin{subfigure}{0.45\textwidth}
+    \begin{lstlisting}
+CMR():
+    freeze_threads()
+    wait_for_writes()
+    read_guards()
+    fork()
+    unfreeze()
+    for addr in unreachables():
+        free(addr)
+    \end{lstlisting}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.45\textwidth}
+    \begin{lstlisting}
+on_freeze():
+    write_roots()
+    register_done()
+    wait_for_unfreeze()
+    \end{lstlisting}
+  \end{subfigure}
+  \caption{Pseudocode of CMR\@. The leftmost code is for the thread that runs the reclamation pass,
+  and the rightmost code is other threads in the system.\label{lst:cmr}}
+\end{figure}
 
 
 \todo{define ``Rust memory'' and shared memory}

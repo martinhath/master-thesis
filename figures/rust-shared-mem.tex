@@ -1,0 +1,38 @@
+\begin{tikzpicture}
+  \node [lnode,node distance=1.5cm] (n1)               {};
+  \node [lnode,node distance=1.5cm] (n2) [right of=n1] {};
+  \node [lnode,node distance=1.5cm] (n3) [right of=n2] {};
+  \node [lnode,node distance=1.5cm] (n4) [right of=n3] {};
+
+  \draw[ptr] ($(n1.east) - (0.25,0)$) -- (n2);
+  \draw[ptr] ($(n2.east) - (0.25,0)$) -- (n3);
+  \draw[ptr] ($(n3.east) - (0.25,0)$) -- (n4);
+  \draw[ptr] ($(n4.east) - (0.25,0)$) -- ($(n4.east) + (0.4,0)$);
+
+  \node [draw,fill=white,node distance=1.5cm, inner sep=0.2cm] (d1) [below of=n1,xshift=-0.19cm] {};
+  \node [draw,fill=white,node distance=2cm,circle] (d2) [below of=n2,xshift=-0.19cm] {};
+  \node [draw,fill=white,node distance=1.5cm] (d3) [below of=n3,xshift=-0.19cm] {$\pi$};
+  \node [draw,fill=white,node distance=1.5cm] (d4) [below of=n4,xshift=-0.19cm] {\code{"hello"}};
+
+
+  \draw[ptr] ($(n1) + (-0.19, +0.05)$) -- (d1.north);
+  \draw[ptr] ($(n2) + (-0.19, +0.05)$) -- (d2.north);
+  \draw[ptr] ($(n3) + (-0.19, +0.05)$) -- (d3.north);
+  \draw[ptr] ($(n4) + (-0.19, +0.05)$) -- (d4.north);
+
+  \node[draw,fill=white,circle,node distance=0.5cm] (treel) [below of=d2,left of=d2] {};
+  \node[draw,fill=white,circle,node distance=0.5cm] (treer) [below of=d2,right of=d2] {};
+  \draw[-latex] (d2) -- (treel);
+  \draw[-latex] (d2) -- (treer);
+
+  \node [draw,fill=white,node distance=2cm] (back) [left of=n1] {\code{0xcafe}};
+  \draw[ptr] (back) ($(d1) + (0.05,0)$) to [out=180,in=270] (back.south);
+
+  \begin{scope}[on background layer]
+    \node [draw,fill=lightred!40, fit={(back) (n4)},inner sep=0.5cm] (shared-mem) {};
+    \node [draw,fill=rust!60, fit={(d1) (treel) (d4)},inner sep=0.3cm] (shared-mem) {};
+  \end{scope}
+
+  \node (shared-label) [above of=back] {Shared memory};
+  \node (rust-label) [below of=d4,xshift=-0.3cm] {Rust memory};
+\end{tikzpicture}

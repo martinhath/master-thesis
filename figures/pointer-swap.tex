@@ -1,30 +1,32 @@
+\hfill
 \begin{tikzpicture}
   \node [draw,fill,circle] (r) {};
-  \node [draw,circle] (a) [left  of=r, below of=r] {a};
+  \node [draw,circle] (a) [left  of=r, below of=r] {$a$};
   \draw[->,color=purple] (r) -- (a);
-  \node [draw,circle] (b) [right of=r, below of=r] {b};
+  \node [draw,circle] (b) [right of=r, below of=r] {$b$};
   \draw[->] (r) -- (b);
   \draw[<->,color=white] (a) to [out=-45,in=-135] (b);
 
   \node () [left of=r] {read left};
 \end{tikzpicture}
-\hspace{1cm}
+\hfill
 \begin{tikzpicture}
   \node [draw,fill,circle] (r) {};
-  \node [draw,color=purple,circle] (a) [left  of=r, below of=r] {a};
+  \node [draw,color=purple,circle] (a) [left  of=r, below of=r] {$a$};
   \draw[->,color=purple] (r) -- (a);
-  \node [draw,circle] (b) [right of=r, below of=r] {b};
+  \node [draw,circle] (b) [right of=r, below of=r] {$b$};
   \draw[->] (r) -- (b);
   \draw[<->,color=gray] (a) to [out=-45,in=-135] (b);
 \end{tikzpicture}
-\hspace{1cm}
+\hfill
 \begin{tikzpicture}
   \node [draw,fill,circle] (r) {};
-  \node [draw,color=purple,circle] (a) [right  of=r, below of=r] {a};
+  \node [draw,color=purple,circle] (a) [right  of=r, below of=r] {$a$};
   \draw[->,color=purple] (r) -- (a);
-  \node [draw,circle] (b) [left of=r, below of=r] {b};
+  \node [draw,circle] (b) [left of=r, below of=r] {$b$};
   \draw[->] (r) -- (b);
   \draw[<->,color=white] (b) to [out=-45,in=-135] (a);
 
-  \node () [left of=r] {read right};
+  \node () [right of=r] {read right};
 \end{tikzpicture}
+\hfill
