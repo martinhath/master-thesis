@@ -18,6 +18,10 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta,backgrounds}
 \usepackage{xcolor}
+% \usepackage{minitoc}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+
 \catcode`\_=12
 
 % Hack to make parskip and amsthm go well together.
@@ -41,6 +45,7 @@
 
 \begin{document}
 
+
 \begin{titlepage}
   \centering
   \begin{figure}[h]
@@ -48,14 +53,17 @@
     \includegraphics{hovedlogo_eng.pdf}
   \end{figure}
   \vspace{1.5cm}
-  {\Large TDT4569: masd \par}
+  {\Large TDT4900: Masters Thesis \par}
   \vspace{1cm}
-  {\huge Tittel her\par}
+  {\huge CMR:\@ A concurrent memory\\ management system for Rust\par}
   \vspace{2cm}
   {\Large\itshape{}Martin Hafskjold Thoresen\par}
   \vfill
   supervised by\par
-  \large Magnus Lie Hetland\\
+  {\large Magnus Lie Hetland}\\
+  \vspace{0.2cm}
+  co-supervised by\par
+  {\large Dan Alistarh}\\
   \vspace{1cm}
   {\large \today\\}
 \end{titlepage}
@@ -67,6 +75,8 @@
 \end{abstract}
 
 \tableofcontents
+\listoffigures
+\listoftables
 
 \chapter{Introduction}
 
@@ -78,11 +88,14 @@ hey hello\cite{linus}
 
 \input{chapters/cmr.tex}
 
-% TODO: own file
-\chapter{Implementation}
+\input{chapters/implementation}
 
 % TODO: own file
-\chapter{Results}
+\chapter{Methodology}
+
+\section{Testing}
+
+\section{Benchmarking}
 
 \bibliographystyle{acm}
 \addcontentsline{toc}{chapter}{Bibliography}

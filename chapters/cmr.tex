@@ -1,4 +1,4 @@
-\chapter{CMR}
+\chapter{CMR\label{ch:cmr}}
 
 We have named the system \emph{CMR}, short for \emph{Concurrent Memory Reclamation}. The system is
 implemented as a Rust library \code{cmr}. We have also implemented four data structures, a stack,
@@ -23,7 +23,7 @@ Memory $M$ is the set of all addresses in the address space of the machine.
 It is a disjoint set $M = A \cap F$ where $A$ is the set of allocated memory, and $F$ is the
 remaining of the memory space.
 A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $\left[addr, addr +
-size\right)$.
+size\right]$.
 We call memory that is in an allocated block \emph{valid memory}.
 
 In Rust, most memory management is handled automatically by the compiler. CMR utilizes this by
@@ -54,15 +54,15 @@ shared memory, so that we don't have to scan through the strucutre, as it may be
 There are a number of possible hazards when managing memory manually. We first define three
 hazards:
 
-\begin{definition}[invalid-read]
+\begin{definition}[invalid-read\label{def:invalid-read}]
   Memory that has never been allocated is read.
 \end{definition}
 
-\begin{definition}[use-after-free]
+\begin{definition}[use-after-free\label{def:use-after-free}]
   Memory that was allocated and then freed is read.
 \end{definition}
 
-\begin{definition}[double-free]
+\begin{definition}[double-free\label{def:double-free}]
   A block is freed twice without being allocated in between.
 \end{definition}
 
@@ -114,9 +114,10 @@ when it is not. See Figure~\ref{fig:pointer-swap} for an example.
   \centering
   \input{figures/pointer-swap}
   \caption{Illustration of how mutation in the reachability graph can make a block $b$ appear as
-  non-reachable. After we have looked at the roots left child, but before reading its right, the
-  nodes child pointers are swapped. Since we cannot detect this (the two pointers could have been
-  the same), we see $a$ twice and do not see $b$.\label{fig:pointer-swap}}
+  non-reachable. After we have looked at the left child of a node, but before reading its right,
+  the nodes child pointers are swapped. Since we cannot detect that the pointers have been changed
+  (the two pointers could have been the same), we see $a$ twice and do not see $b$.%
+  \label{fig:pointer-swap}}
 \end{figure}
 
 In order to handle mutation problems, we obtain a snapshot of the entire processes memory by
@@ -244,12 +245,14 @@ and a new NullablePtr can be constructed with a given tag using \emph{with-tag}.
   \text{with-tag\:::\:} (NullablePtr, int) \to NullablePtr
 \end{equation}
 The actual address is obtained through \emph{addr}
-\begin{equation}\label{eq:ptr-with-tag}
+\begin{equation}\label{eq:ptr-addr}
   \text{addr\:::\:} (NullablePtr) \to int
 \end{equation}
 
 \subsection{Ptr}
 
+\todo{Reconsider having NullablePtr in here. I think its mostly a rust impl thing, as we just want
+Deref on Ptr but must handle null as well.}
 Ptr may be used in the place of NullablePtr, since is it just a special case of it. All functions
 that take a NullablePtr can also take a Ptr.
 
@@ -257,104 +260,46 @@ that take a NullablePtr can also take a Ptr.
 \subsection{Other actions}
 
 We also need a few other operations to make sure that the implementation of funcions are valid.
-For instance, in load-atomic there is a window in between reading the atomic ptr and storing it in
-the guard in which a reclamation pass may have happened. \emph{atomic} makes sure that this is
-safe:
-\begin{definition}\label{def:atomic}
-  $\text{atomic\:::\:} (() \to T) \to T$ is a higher order function that runs a function without
-  a reclamation pass happening during the functions execution.
-\end{definition}
+For instance, in load-atomic there is a window in between reading the atomic and storing the
+pointer read it in the guard in which a reclamation pass may have happened. The higher order
+function \emph{atomic} makes sure that this is safe, by running the given function without a
+reclamation pass happening in between:
+\begin{equation}\label{eq:atomic}
+  \text{atomic\:::\:} (() \to T) \to T
+\end{equation}
 
 
-\clearpage
-
-
-
-
+\section{Correctness}
 
 With these types and operations we are able to prove important properties of the system.
 
-\begin{theorem}[Guard is valid]\label{thm:guard-valid}
-  If a Guard is not $\bot$, it points to valid memory.
+\begin{theorem}[\mc{Guard} is valid]\label{thm:guard-valid}
+  If a \mc{Guard} is not $\bot$, it points to valid memory.
 \end{theorem}
 \begin{proof}
-  \note{lol}
-  Assume the Guard $g$ $\neq \bot$.
-  The Guard has loaded its value from an Atomic $a$ using $atomic-load$.
-We first show that $a$ is itself in valid memory. By induction:
-\emph{Base case:} the Atomic resides in Rust memory, and is thus valid. \emph{Inductive case:} the
-Atomic resides in shared memory, and thus accessed through a Ptr $p$.  This Ptr is protected by a
-Guard $g\sb{2} \neq g$, since $g\sb{2}$ is immutable throughout the lifetime of $p$, and $g$ is
-being changed. $g\sb{2}$ is valid by induction, so the pointer value in $a$ is reachable.
+  Since the \mc{Guard} $g \neq \bot$, it has loaded its value from an Atomic $a$ using
+  \mc{atomic-load}.  We first show that $a$ is itself in valid memory by induction: \emph{Base
+  case:} the Atomic resides in Rust memory, and is thus valid. \emph{Inductive case:} the
+  \mc{Atomic} resides in shared memory, and thus accessed through a \mc{Ptr} $p$.  This \mc{Ptr} is
+  protected by a \mc{Guard} $g\sb{2} \neq g$, since $g\sb{2}$ is immutable throughout the lifetime
+  of $p$, and $g$ is being changed. $g\sb{2}$ is valid by induction, so the pointer value in $a$ is
+  reachable. This shows that the value read from the \mc{Atomic} is valid.
 
-Using Definition~\ref{def:atomic}, we make sure that the read of $a$ and the store in $g$ happens
-without a reclamation pass in between. Thus all valid pointers before the read is still valid after
-the store.  After the store operation in $g$ has completed, $g$ protects $v$. Thus $v$ is valid.
+  Using \mc{atomic} (Eq.~\ref{eq:atomic}), we make sure that the read of $a$ and the store in
+  $g$ happens without a reclamation pass in between. Thus all valid pointers before the read is
+  still valid after the store. After the store operation in $g$ has completed, $g$ protects $v$.
+  Thus $v$ is valid.
 \end{proof}
 
-\begin{lemma}[Ptr is valid]\label{lm:ptr-valid}
-  The Ptr points to valid memory.
+\begin{lemma}[\mc{Ptr} is valid]\label{lm:ptr-valid}
+  The \mc{Ptr} points to valid memory.
 \end{lemma}
 \begin{proof}
-The  Ptr $p$ is read from a Guard $g$ and $g$ is immutable throughout the lifetime of $p$ so they
-have the same value. $p \neq \bot$, so this follows by Theorem~\ref{thm:guard-valid}.
+  The  \mc{Ptr} $p$ is read from a \mc{Guard} $g$ and $g$ is immutable throughout the lifetime of
+  $p$ so they have the same value. $p \neq \bot$, so this follows by Theorem~\ref{thm:guard-valid}.
 \end{proof}
 
-
-
-
-\section{Implementation}
-
-The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
-snapshot of the entire memory space of the process. Having this we can identify the roots, and run
-reachability analysis, knowing that nothing will change while we are looking.
-
-Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
-\emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
-garbage collection pass is detectable. Then the thread writes out the address of a thread local
-list of allocated addresses, such that the consolidator can collect all addresses that has been
-allocated since the last consolidation. At last, the threads wait for the consolidator to say that
-they may return to their execution. \note{why is this required?}
-
-\note{Add implementation details here}
-
-  \code{WAS\_SIGNALED} is a thread local flag that is
-  set to \code{true} in the signal handler. Note that this function does not support being called
-  recursively.
-\begin{figure}[ht]
-  \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A]
-fn atomic(f: F):
-  loop:
-    WAS_SIGNALED = false
-    let ret = f()
-    if not WAS_SIGNALED: return ret
-\end{lstlisting}
-\caption{Pseudocode of $atomic$}
-\end{figure}
-
-\begin{theorem}
-  If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
-  Definition~\ref{def:atomic}.
-\end{theorem}
-\begin{proof}
-  \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
-  \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
-  signals any thread, it means that there was a consolidator in this time interval. We are only
-  returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
-  successfully called without overlapping with a pass.
-\end{proof}
-Note that it is possible that the consolidator was initiated before entering the \code{atomic}
-function, but that they only got execution time after \code{A3}.
-\begin{lemma}
-  If the consolidator is lock-free, then \code{atomic} is lock-free.
-\end{lemma}
-\begin{proof}
-  If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
-  and is lock-free, it will either make progress, or some other thread is making progress. In
-  either case, the system makes progress.
-  \note{this is a terrible proof}
-\end{proof}
-
-It is important that the function given to \code{atomic} can be called multiple times without
-breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
-usually the case.
+Lemma~\ref{lm:ptr-valid} is the most important result in this section, since it guarantees that
+accesses of the memory in a \mc{Ptr} is valid. Thus, a memory access through a \mc{Ptr} can result
+in a invalid-read (Def.~\ref{def:invalid-read}) or use-after-free (Def.~\ref{def:use-after-free})
+hazard.

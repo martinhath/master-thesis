@@ -3,4 +3,4 @@ thesis-martin-hafskjold-thoresen.pdf: thesis.tex macros.tex sources.bib
 
 
 clean: 
-	rm -f thesis.aux thesis.bbl thesis.blg thesis.log thesis.out thesis.pdf thesis.toc thesis.toc.old
+	rm -f thesis.aux thesis.bbl thesis.blg thesis.log thesis.out thesis.pdf thesis.toc thesis.toc.old thesis.lof thesis.lot thesis.mad thesis.mtc thesis.mtc0
