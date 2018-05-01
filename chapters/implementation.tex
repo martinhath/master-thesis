@@ -1,0 +1,163 @@
+\chapter{Implementation}
+
+In this chapter we look at the Rust implementation of CMR\@.  We look at four things: how thread
+freezing is implemented (Section~\ref{sec:signals}), how reachability analysis is done
+(Section~\ref{sec:reachability}), thread and process intercommunication
+(Section~\ref{sec:thread-communication}), and how the primitives and operations as defiend in
+Chapter~\ref{ch:cmr} are implemented (Section~\ref{sec:data-types}).
+
+
+\section{POSIX Signals\label{sec:signals}}
+
+\emph{Signals} is a process communication mechanism used by POSIX compliant operating systems.
+\code{pthreads} (POSIX threads) also supports signaling for communication between threads in a
+process. We utilize this in order to implement thread freezing, by registering a signal handler for
+the signal \code{SIGUSR1}. Pseudocode for a signal handler is shown in
+Listing~\ref{lst:signal-handler}. The signal handler is registered with the \code{sigaction}
+function, and threads are signaled with \code{pthread_sigqueue}.
+
+\begin{figure}[ht]
+\begin{lstlisting}[caption=Pseudocode for the signal handler used by CMR,label=lst:signal-handler]
+// Thread might be shutting down
+if is_in_cleanup:
+    clean_up_and_return()
+// Register our presence, and get an index for later use
+id = thread_counters[0].fetch_add(1)
+// Write out our data to a unique place
+write_out_data(thread_datas[id])
+// Register that we're done writing the data
+thread_counters[1].fetch_add(1)
+// Wait for the reclaimer to unfreeze us
+while thread_counters[2].load() != 1:
+    wait()
+// Register that we have left
+thread_counters[0].fetch_sub(1)
+\end{lstlisting}
+\end{figure}
+
+The signal handler is registered by a thread with a call to the \code{thread_activate} procedure,
+which must be called before the thread is using CMR\@. \todo{bench automation of this in Guard or
+something?}
+The system has a fixed upper bound on the number of threads that may be active at any time, through
+the \code{thread_datas} vector, which is pre-allocated with a fixed size \todo{check this out}.
+
+Since a thread handler may have registered it leaving by decrementing \code{thread_counters[0]},
+but then preempted before leaving the handler, CMR uses \code{pthread_sigqueue} instead of the more
+standard \code{pthread_kill}, as \code{pthreads} may simply ignore a signal that is sent to a
+thread when that thread is already in the signal handler for a given signal. This would in turn
+have the reclaimer believe that $n$ threads were in the signal handler, and would expect
+\code{thread_counters[0]} to eventually be $n$, when one thread would in fact exit the signal
+handler from the previous reclamation pass, making $\text{\code{thread_counters[0]}} \leq n - 1$.
+
+
+\section{Reachability\label{sec:reachability}}
+
+Reachability analysis is done through a standard mark-and-sweep algorithm. The reclaimer collects
+all roots from all active threads, and looks through the memory of each data type that is pointer
+to by the roots. If any data type contains a \mc{Guard} or \mc{Ptr}, the address is marked as seen,
+and added to the frontier. When the frontier is empty, we have registered all reachable memory.
+Listing~\ref{lst:mark-and-sweep} shows the algorithm.
+
+\begin{figure}[ht]
+\begin{lstlisting}[
+  caption=The Mark-and-Sweep algorithm.,
+  label=lst:mark-and-sweep,
+  frame=None,
+  basicstyle=\normalsize\mdseries,
+  columns=flexible,
+  xleftmargin=15pt,
+  numbers=left,
+  keywordstyle={\bf},
+  mathescape,
+  commentstyle={\color{gray}},
+  keywords={for,if,else,return,in,to,while,continue,break,output}]
+$\textsc{mark-and-sweep(Roots)}$
+    Frontier = $\emptyset$
+    Seen = Roots
+    while mem = Pop(Frontier)
+        for ptr in Ptrs(mem)
+            if ptr not in Seen
+                Push(Frontier, ptr)
+            Insert(Seen, ptr)
+    return Seen
+\end{lstlisting}
+\end{figure}
+
+Finding pointers in arbitrary data types might involve significant work since the size of the data
+types can be arbitrarily large, in addition to that memory might not be initialized, and false
+positives. Instead of scanning through the memory block linearily,
+\note{should write somewhere why we can assume that the ptr is the start of a block}
+CMR has a Trait called \code{Trace}, which all data types that is in shared memory must implement.
+A type implementing \code{Trace} knows a bound on how many pointers it contains, and can write
+these out to a buffer. For instance, a \code{Node} in a single linked list contains only one
+pointer, namely its next pointer, which is trivial to write out.
+The implementation of this uses \emph{Trait Objects} (Sec.~\ref{sec:trait-objects}), which involves
+dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
+I-cache, although the number of misses is limited by the difference in data types in shared memory,
+which normally is smaller than in Rust memory.
+
+
+\section{Communication\label{sec:thread-communication}}
+
+After the child process has completed the reachability analysis, it returns the set of reachable
+addresses to the parent process through a \emph{memory mapped} area (Sec.~\ref{sec:memory-map}).
+A new area is set up on each reclamation iteration, using the \code{mmap} system call.
+\todo{write exactly what we're writing to the mmap, and in what order. Think sync stuff.}
+
+
+
+
+\section{Data Types\label{sec:data-types}}
+
+The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
+snapshot of the entire memory space of the process. Having this we can identify the roots, and run
+reachability analysis, knowing that nothing will change while we are looking.
+
+Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
+\emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
+garbage collection pass is detectable. Then the thread writes out the address of a thread local
+list of allocated addresses, such that the consolidator can collect all addresses that has been
+allocated since the last consolidation. At last, the threads wait for the consolidator to say that
+they may return to their execution. \note{why is this required?}
+
+\note{Add implementation details here}
+
+  \code{WAS\_SIGNALED} is a thread local flag that is
+  set to \code{true} in the signal handler. Note that this function does not support being called
+  recursively.
+\begin{figure}[ht]
+  \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A,caption=Pseudocode of $atomic$]
+fn atomic(f: F):
+  loop:
+    WAS_SIGNALED = false
+    let ret = f()
+    if not WAS_SIGNALED: return ret
+\end{lstlisting}
+\end{figure}
+
+\begin{theorem}
+  If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
+  Definition~\ref{eq:atomic}.
+\end{theorem}
+\begin{proof}
+  \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
+  \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
+  signals any thread, it means that there was a consolidator in this time interval. We are only
+  returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
+  successfully called without overlapping with a pass.
+\end{proof}
+Note that it is possible that the consolidator was initiated before entering the \code{atomic}
+function, but that they only got execution time after \code{A3}.
+\begin{lemma}
+  If the consolidator is lock-free, then \code{atomic} is lock-free.
+\end{lemma}
+\begin{proof}
+  If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
+  and is lock-free, it will either make progress, or some other thread is making progress. In
+  either case, the system makes progress.
+  \note{this is a terrible proof}
+\end{proof}
+
+It is important that the function given to \code{atomic} can be called multiple times without
+breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
+usually the case.

@@ -23,7 +23,7 @@ Memory $M$ is the set of all addresses in the address space of the machine.
 It is a disjoint set $M = A \cap F$ where $A$ is the set of allocated memory, and $F$ is the
 remaining of the memory space.
 A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $\left[addr, addr +
-size\right]$.
+size\right)$.
 We call memory that is in an allocated block \emph{valid memory}.
 
 In Rust, most memory management is handled automatically by the compiler. CMR utilizes this by
