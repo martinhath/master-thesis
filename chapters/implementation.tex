@@ -17,7 +17,7 @@ Listing~\ref{lst:signal-handler}. The signal handler is registered with the \cod
 function, and threads are signaled with \code{pthread_sigqueue}.
 
 \begin{figure}[ht]
-\begin{lstlisting}[caption=Pseudocode for the signal handler used by CMR,label=lst:signal-handler]
+  \begin{lstlisting}[caption=Pseudocode for the signal handler used by CMR,label=lst:signal-handler]
 // Thread might be shutting down
 if is_in_cleanup:
     clean_up_and_return()
@@ -32,7 +32,7 @@ while thread_counters[2].load() != 1:
     wait()
 // Register that we have left
 thread_counters[0].fetch_sub(1)
-\end{lstlisting}
+  \end{lstlisting}
 \end{figure}
 
 The signal handler is registered by a thread with a call to the \code{thread_activate} procedure,
@@ -56,12 +56,12 @@ Reachability analysis is done through a standard mark-and-sweep algorithm. The r
 all roots from all active threads, and looks through the memory of each data type that is pointer
 to by the roots. If any data type contains a \mc{Guard} or \mc{Ptr}, the address is marked as seen,
 and added to the frontier. When the frontier is empty, we have registered all reachable memory.
-Listing~\ref{lst:mark-and-sweep} shows the algorithm.
+Listing~\ref{lst:find-reachable} shows the algorithm.
 
 \begin{figure}[ht]
 \begin{lstlisting}[
-  caption=The Mark-and-Sweep algorithm.,
-  label=lst:mark-and-sweep,
+  caption=The algorithm used to find all reachable memory blocks,
+  label=lst:find-reachable,
   frame=None,
   basicstyle=\normalsize\mdseries,
   columns=flexible,
@@ -70,9 +70,9 @@ Listing~\ref{lst:mark-and-sweep} shows the algorithm.
   keywordstyle={\bf},
   mathescape,
   commentstyle={\color{gray}},
-  keywords={for,if,else,return,in,to,while,continue,break,output}]
-$\textsc{mark-and-sweep(Roots)}$
-    Frontier = $\emptyset$
+  keywords={for,if,else,return,in,to,while,continue,break,output,not}]
+$\textsc{find-reachable(Roots)}$
+    Frontier = Roots
     Seen = Roots
     while mem = Pop(Frontier)
         for ptr in Ptrs(mem)
@@ -85,29 +85,116 @@ $\textsc{mark-and-sweep(Roots)}$
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
 types can be arbitrarily large, in addition to that memory might not be initialized, and false
-positives. Instead of scanning through the memory block linearily,
-\note{should write somewhere why we can assume that the ptr is the start of a block}
-CMR has a Trait called \code{Trace}, which all data types that is in shared memory must implement.
-A type implementing \code{Trace} knows a bound on how many pointers it contains, and can write
-these out to a buffer. For instance, a \code{Node} in a single linked list contains only one
-pointer, namely its next pointer, which is trivial to write out.
-The implementation of this uses \emph{Trait Objects} (Sec.~\ref{sec:trait-objects}), which involves
-dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
-I-cache, although the number of misses is limited by the difference in data types in shared memory,
-which normally is smaller than in Rust memory.
+positives. Instead of scanning through the memory block linearily, \note{should write somewhere why
+we can assume that the ptr is the start of a block} CMR has a Trait called \code{Trace}, which all
+data types that is in shared memory must implement.  A type implementing \code{Trace} knows a bound
+on how many shared memory pointers it contains, and can write these out to a buffer. For instance,
+a \code{Node} in a single linked list contains only one pointer, namely its next pointer, which is
+trivial to write out.  The implementation of this uses \emph{Trait Objects}
+(Sec.~\ref{sec:trait-objects}), which involves dynamic dispatch. This solution is potentially
+expensive, as it may involve cahce misses in the I-cache, although the number of misses is limited
+by the difference in data types in shared memory, which normally is smaller than in Rust memory.
 
 
 \section{Communication\label{sec:thread-communication}}
+\todo{rename this section.}
 
-After the child process has completed the reachability analysis, it returns the set of reachable
-addresses to the parent process through a \emph{memory mapped} area (Sec.~\ref{sec:memory-map}).
-A new area is set up on each reclamation iteration, using the \code{mmap} system call.
-\todo{write exactly what we're writing to the mmap, and in what order. Think sync stuff.}
+In order to minimize the delay of the reclamation pass from the point of view of the user, we
+employ a background thread which handles a part of the work after we \code{fork}. This ensures that
+no user thread has to wait for the child to finish its reachability analysis before going back to
+running application code.
+
+The reclaimer goes through the list of threads frozen in the signal handler, and reads their
+\mc{Guard}s, which includes information of the type that is pointed to. Then we set up the memory
+mapped area, and write a \emph{marker} word in the first position, as a communication channel
+between the child and the parent process: when this word changes we know that the child is done
+with its work. The memory mapped area as well as new allocations are send to a background thread
+that waits for the marker word to change.
+
+\todo{must move mmap to above first use}
+The child process performs the reachability analysis, by leveraging the \code{Trace} trait. After
+the child process has completed the reachability analysis, it returns the set of reachable
+addresses to the parent process through a \emph{memory mapped} area (Sec.~\ref{sec:memory-map}).  A
+new area is set up on each reclamation iteration, using the \code{mmap} system call.  When
+finishing the reachability analysis, it writes the number of reachable blocks in the first
+position, overwriting the marker.
+
 
 
 
 
 \section{Data Types\label{sec:data-types}}
+
+In this section we look at the concrete Rust implementation of selected data types and operations,
+and argue for their correctness.
+
+\subsubsection{\mc{Guard}}
+
+\begin{figure}[p]
+  \begin{lstlisting}[caption=Excerpt of \mc{Guard}s definitions]
+struct Guard<T> {
+  ptr: usize,
+  _marker: PhantomData<T>,
+}
+impl<T: Trace> Guard<T> {
+    pub fn register(&mut self£ {
+        ROOTS.with(|r| {
+            let mut v = r.borrow_mut(£;
+            v.push(GuardPointer::from_guard(self££
+        }£;
+    }
+    ...
+}\end{lstlisting}
+\end{figure}
+
+The \mc{Guard} is implemented as a single word, in addition to an empty type (the
+\code{PhantomData}) as Rust \emph{requires} generic types to be used. \mc{Guard}s aren't normally
+constructed directly (\todo{non movable types somewhere}), but rather declared with the
+\code{guard!} macro, which constructs it and calls \code{Guard::register}. Since we need to keep
+track of type information dynamically, we construct a \code{GuardPointer} which does exactly this,
+and pushes it onto a thread local \code{Vec}, \code{ROOTS}.
+It is also possible to construct a \mc{NullablePtr} from the \mc{Guard}.
+
+\subsubsection{\mc{Atomic}}
+
+\mc{Atomic} is mainly a wrapper around Rusts \code{AtomicPtr}, although the internals differ
+slightly. CMR defines its own type so that we can defide on the return types of certain functions.
+We include the definition of the \code{struct}, as well as \code{cas}, the compare-and-swap
+operation, in which we utilize some Traits from the Rust standard library to convert between types.
+\todo{write a little here}
+
+\begin{figure}[p]
+  \begin{lstlisting}[caption=Excerpt of \mc{Atomic}s definitions]
+pub struct Atomic<T> {
+    data: AtomicUsize,
+    _marker: PhantomData<T>,
+}
+impl<T> Atomic<T> {
+    pub fn cas<'a, A, B>(&self, a: A, b: B, ordering: Ordering) -> Result<A, NullablePtr<'a, T>>
+    where
+        T: 'a,
+        A: Into<NullablePtr<'a, T>> + ::std::convert::TryFrom<NullablePtr<'a, T>>,
+        <A as ::std::convert::TryFrom<NullablePtr<'a, T>>>::Error: ::std::fmt::Debug,
+        B: Into<NullablePtr<'a, T>>,
+    {
+        let old = raw(a);
+        let new = raw(b);
+        let ret = self.data.compare_and_swap(old, new, ordering);
+        if ret == old {
+            Ok(A::try_from(NullablePtr::new(ret)).unwrap())
+        } else {
+            Err(NullablePtr::new(ret))
+        }
+    }
+    ...
+}
+
+\end{lstlisting}
+\end{figure}
+
+\clearpage
+\vspace{2cm}
+
 
 The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
 snapshot of the entire memory space of the process. Having this we can identify the roots, and run
