@@ -18,7 +18,10 @@
 \usepackage{subcaption}
 \usepackage{tikz}
 \usetikzlibrary{positioning,shapes,decorations,calc,fit,arrows.meta,backgrounds}
+\usepackage[inline,shortlabels]{enumitem}
 \usepackage{xcolor}
+\usepackage{longtable}
+\usepackage[automake,acronym]{glossaries}
 % \usepackage{minitoc}
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -43,6 +46,8 @@
 \newtheorem{example}[theorem]{Example}
 
 \graphicspath{{./graphics/}}
+
+\makeglossaries{}
 
 \begin{document}
 
@@ -97,6 +102,10 @@ hey hello\cite{linus}
 \section{Testing}
 
 \section{Benchmarking}
+
+
+\printglossary[type=\acronymtype,title=Abbreviations]
+\printglossary{}
 
 \bibliographystyle{acm}
 \addcontentsline{toc}{chapter}{Bibliography}

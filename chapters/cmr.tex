@@ -168,7 +168,7 @@ CMR has four types that are essential to understanding how we manage safe access
 \emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
 type of the data they protect; this is omitted for brevity. We look at each type in turn.
 
-\begin{definition}[Guard]
+\begin{definition}[Guard\label{def:guard}]
   A \emph{Guard} is an object that contains a \emph{root}. The Guard is non-movable in memory.
   All roots are stored in Guards.
 \end{definition}
