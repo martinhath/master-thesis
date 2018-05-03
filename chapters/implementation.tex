@@ -12,28 +12,41 @@ Chapter~\ref{ch:cmr} are implemented (Section~\ref{sec:data-types}).
 \emph{Signals} is a process communication mechanism used by POSIX compliant operating systems.
 \code{pthreads} (POSIX threads) also supports signaling for communication between threads in a
 process. We utilize this in order to implement thread freezing, by registering a signal handler for
-the signal \code{SIGUSR1}. Pseudocode for a signal handler is shown in
+the signal \code{SIGUSR1}. Pseudocode for the signal handler CMR uses is shown in
 Listing~\ref{lst:signal-handler}. The signal handler is registered with the \code{sigaction}
 function, and threads are signaled with \code{pthread_sigqueue}.
 
-\begin{figure}[ht]
-  \begin{lstlisting}[caption=Pseudocode for the signal handler used by CMR,label=lst:signal-handler]
-// Thread might be shutting down
+\begin{figure}[b]
+  \begin{lstlisting}[
+    numbers=left,
+    numberstyle=\color{gray}\ttfamily{}SH,
+    caption=Pseudocode for the signal handler used by CMR,
+    label=lst:signal-handler,
+  ]
 if is_in_cleanup:
-    clean_up_and_return()
-// Register our presence, and get an index for later use
-id = thread_counters[0].fetch_add(1)
-// Write out our data to a unique place
-write_out_data(thread_datas[id])
-// Register that we're done writing the data
-thread_counters[1].fetch_add(1)
-// Wait for the reclaimer to unfreeze us
-while thread_counters[2].load() != 1:
-    wait()
-// Register that we have left
-thread_counters[0].fetch_sub(1)
-  \end{lstlisting}
+    clean_up_and_return(£
+id = sh_enter_counter.fetch_add(1£
+write_out_data_to(thread_datas[id]£
+sh_done_counter.fetch_add(1£
+while sh_frozen.load(£:
+    wait(£
+sh_enter_counter.fetch_sub(1£\end{lstlisting}
 \end{figure}
+
+Due to a complication in which a threads shutdown procedure is initiated without the signal handler
+being removed, we need to check if we are shutting down~\coderef{SH1}, as we do not have access to
+the thread local storage, which we need. If we are shutting down we will not participate in the
+rest of the handler, but clean up in order to avoid deadlocks~\coderef{SH2}.
+We use \code{sh_enter_counter} to keep track of how many threads are present in the signal handler;
+the reclaimer knows how many threads it succesfully signaled, so it knows how many threads to
+expect. \coderef{SH3} registers a threads presence, in addition to giving each thread a unique
+index in the range $[0, n)$, where $n$ is the number of threads signaled. This is used
+in~\coderef{SH4}, where each thread writes out their guards and allocations into the global vector
+\code{thread_datas}. We then register that we have written our data~\coderef{SH5}, and wait for the
+reclaimer to unfreeze us~\coderef{SH6}.
+\todo{Since we don't know that we have exited the handler after SH6, do we really need SH7??}
+
+
 
 The signal handler is registered by a thread with a call to the \code{thread_activate} procedure,
 which must be called before the thread is using CMR\@. \todo{bench automation of this in Guard or
@@ -44,10 +57,11 @@ the \code{thread_datas} vector, which is pre-allocated with a fixed size \todo{c
 Since a thread handler may have registered it leaving by decrementing \code{thread_counters[0]},
 but then preempted before leaving the handler, CMR uses \code{pthread_sigqueue} instead of the more
 standard \code{pthread_kill}, as \code{pthreads} may simply ignore a signal that is sent to a
-thread when that thread is already in the signal handler for a given signal. This would in turn
-have the reclaimer believe that $n$ threads were in the signal handler, and would expect
-\code{thread_counters[0]} to eventually be $n$, when one thread would in fact exit the signal
-handler from the previous reclamation pass, making $\text{\code{thread_counters[0]}} \leq n - 1$.
+thread when that thread is already in the signal handler for a given signal.
+This is problematic, since the reclaimer keeps carefully track of where threads are in their
+handler, and waits for all threads to reach certain checkpoints. If the reclaimer is lead to
+believe that a thread just entered the handler when in fact it was just leaving, it will lead to a
+deadlock.
 
 
 \section{Reachability\label{sec:reachability}}
@@ -90,10 +104,57 @@ we can assume that the ptr is the start of a block} CMR has a Trait called \code
 data types that is in shared memory must implement.  A type implementing \code{Trace} knows a bound
 on how many shared memory pointers it contains, and can write these out to a buffer. For instance,
 a \code{Node} in a single linked list contains only one pointer, namely its next pointer, which is
-trivial to write out.  The implementation of this uses \emph{Trait Objects}
-(Sec.~\ref{sec:trait-objects}), which involves dynamic dispatch. This solution is potentially
-expensive, as it may involve cahce misses in the I-cache, although the number of misses is limited
-by the difference in data types in shared memory, which normally is smaller than in Rust memory.
+trivial to write out.
+
+The implementation of this uses \emph{Trait Objects} (Sec.~\ref{sec:trait-objects}), which involves
+dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
+I-cache, although the number of misses is limited by the difference in data types in shared memory,
+which normally is smaller than in Rust memory.
+
+\begin{figure}[t]
+  \begin{lstlisting}[caption=Definition of the \code{Trace} trait and a sample implementation for
+  a linked list node. The impementation uses \emph{specialization} (Section~\ref{sec:specialization}) as the
+  implementation of \code{Node}s containing data that itself is \code{Trace} is different.,
+  numbers=left,
+  numberstyle=\color{gray}\ttfamily{}T,
+  ]
+pub trait Trace {
+    fn count(&self) -> usize { 0 }
+    fn write(&self, &mut [TraitObject]) -> usize { 0 }
+}
+pub struct Node<T> {
+    data: ManuallyDrop<T>,
+    next: Atomic<Node<T>>,
+}
+impl<T> cmr::Trace for Node<T> {
+    default fn count(&self) -> usize { 1 }
+    default fn write(&self, slice: &mut [TraitObject]) -> usize {
+        let p = unsafe { self.next.load(SeqCst) };
+        if !p.is_null() {
+            slice[0] = ptr::trait_object(p);
+            1
+        } else {
+            0
+        }
+    }
+}\end{lstlisting}
+\end{figure}
+
+\code{Trace} contains default implementations of the two functions, such that primitive types can
+easily implement it. \code{write} takes a buffer, writes all pointers to it as \code{TraitObject}s,
+and returns the number of objects written. \code{count} gives an upper bound on the number of
+pointers written. This is useful for collection types, like \code{Vec} or \code{HashMap}, which
+also may contain pointers to shared memory.
+
+\code{Node} is a standard node from a linked list, containing \code{data}, and a \code{next}
+pointer. The implementation of \code{write} loads the \code{next} pointer~\coderef{T12}, which is
+an \code{unsafe} operation, as there is no \mc{Guard} protecting the pointer. This is safe in the
+context of the reclaimer since the memory will be freed at earliest when we finish the reachability
+analysis, and at that point we no longer read the memory. The implementation only writes out the
+pointer if it is non-null. While this is not required for CMR to function, it simplifies the logic
+in the reachability analysis.
+
+
 
 
 \section{Communication\label{sec:thread-communication}}
