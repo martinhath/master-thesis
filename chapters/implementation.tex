@@ -132,11 +132,12 @@ Reachability analysis is done through a standard mark-and-sweep algorithm. The r
 all roots from all active threads, and looks through the memory of each data type that is pointer
 to by the roots. If any data type contains a \mc{Guard} or \mc{Ptr}, the address is marked as seen,
 and added to the frontier. When the frontier is empty, we have registered all reachable memory.
-Listing~\ref{lst:find-reachable} shows the algorithm.
+Listing~\ref{lst:find-reachable} shows the algorithm, which is effectively breadth-first search
+through the memory graph.
 
 \begin{figure}[ht]
 \begin{lstlisting}[
-  caption=The algorithm used to find all reachable memory blocks,
+  caption=The algorithm used to find all reachable memory blocks.,
   label=lst:find-reachable,
   frame=None,
   basicstyle=\normalsize\mdseries,
