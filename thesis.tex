@@ -1,5 +1,4 @@
-% \documentclass[b5paper,twoside,openright]{report}
-\documentclass[b5paper,twoside]{report}
+\documentclass[b5paper,twoside,openright]{report}
 \usepackage[lmargin=25mm,rmargin=25mm,tmargin=27mm,bmargin=30mm]{geometry}
 
 \usepackage[T1]{fontenc}
@@ -10,6 +9,10 @@
 \usepackage{color}
 \usepackage{graphicx}
 \usepackage[colorlinks,linkcolor=purple]{hyperref}
+\usepackage{footnotebackref}
+\usepackage[capitalize,nameinlink]{cleveref}
+\Crefname{lstlisting}{Listing}{Listings}
+
 % \usepackage{libertinust1math}
 \usepackage{libertine}
 \usepackage{inconsolata}
@@ -25,7 +28,6 @@
 \usepackage[automake,acronym]{glossaries}
 
 \usepackage{fancyhdr}
-\pagestyle{fancy}
 \fancyhead[LO,RE]{\textsc{\leftmark}}
 \fancyhead[RO,LE]{\textsc{\rightmark}}
 
@@ -80,16 +82,20 @@
 
 \input{macros.tex}
 
-\begin{abstract}
-  abstract
-\end{abstract}
 
-\tableofcontents
-\listoffigures
+
+\input{chapters/abstract}
+
+\input{chapters/acknowledgements}
+
+
+\tableofcontents%
+\listoffigures%
 \listoftables%
 
 
 \part{Bing Bong}
+\pagestyle{fancy}
 
 \input{chapters/introduction}
 

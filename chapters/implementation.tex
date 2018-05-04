@@ -1,17 +1,17 @@
 \chapter{Implementation}
 
 In this chapter we look at the Rust implementation of CMR\@.  We look at four things: how thread
-freezing is implemented (Section~\autoref{sec:signals}), how reachability analysis is done
-(Section~\ref{sec:reachability}), thread and process intercommunication
-(Section~\ref{sec:thread-communication}), and how the primitives and operations as defiend in
-Chapter~\ref{ch:cmr} are implemented (Section~\ref{sec:data-types}).
+freezing is implemented (\cref{sec:signals}), how reachability analysis is done
+(\cref{sec:reachability}), thread and process intercommunication
+(\cref{sec:thread-communication}), and how the primitives and operations as defiend in
+\cref{ch:cmr} are implemented (\cref{sec:data-types}).
 
 
 \section{The Reclaimer\label{sec:thread-communication}}
 
 There is only at most one reclaimer at any time. The first thing a potential reclaiming thread
 tries to do, is take the lock~\coderef{R2}. Then we take another lock that is used for
-allocation~\coderef{R3} (see Section~\ref{sec:alloc-lock}). This may block, but since we have not
+allocation~\coderef{R3} (see \cref{sec:alloc-lock}). This may block, but since we have not
 frozen any threads yet, any thread holding the lock will eventually release it, assuming it itself
 is not deadlocked. Next we initialize shared variables, such as the counters used by threads in
 their signal handler. After they are initialized, we freeze all threads~\coderef{R5}, and count how
@@ -47,7 +47,7 @@ When \code{fork()}ing the child process continues the thread of the parent proce
 \code{fork()}, such that it has access to everything that the original thread had\todo{rewrite}.
 As such, we don't need to communicate from parent to child. However, the job of the child process
 is to run reachability analysis, and we do need its result. CMR uses \emph{memory map}
-(Section~\ref{sec:memory-map}) for \gls{ipc}\@, which is set up before the fork. Since we need to
+(\cref{sec:memory-map}) for \gls{ipc}\@, which is set up before the fork. Since we need to
 know when the child is done writing its results, we write a \emph{marker} word as the first word in
 the memory map. Then we \code{fork()}. The child process does the reachability analysis, and
 writes the result after marker in the memory map. When it is done writing, it overwrites the marker
@@ -72,10 +72,10 @@ only released when the background thread is fully done with the reclamation pass
 \section{Thread Freezing\label{sec:signals}}
 
 \emph{Signals} is a process communication mechanism used by POSIX compliant operating systems.
-\code{pthreads} (POSIX threads) also supports signaling for communication between threads in a
+\gls{pthreads} also supports signaling for communication between threads in a
 process. We utilize this in order to implement thread freezing, by registering a signal handler for
 the signal \code{SIGUSR1}. Pseudocode for the signal handler CMR uses is shown in
-Listing~\ref{lst:signal-handler}. The signal handler is registered with the \code{sigaction}
+\cref{lst:guard-impl}. The signal handler is registered with the \code{sigaction}
 function, and threads are signaled with \code{pthread_sigqueue}.
 
 \begin{figure}[b]
@@ -118,7 +118,7 @@ the \code{thread_datas} vector, which is pre-allocated with a fixed size \todo{c
 
 Since a thread handler may have registered it leaving by decrementing \code{thread_counters[0]},
 but then preempted before leaving the handler, CMR uses \code{pthread_sigqueue} instead of the more
-standard \code{pthread_kill}, as \code{pthreads} may simply ignore a signal that is sent to a
+standard \code{pthread_kill}, as \gls{pthreads} may simply ignore a signal that is sent to a
 thread when that thread is already in the signal handler for a given signal.
 This is problematic, since the reclaimer keeps carefully track of where threads are in their
 handler, and waits for all threads to reach certain checkpoints. If the reclaimer is lead to
@@ -132,7 +132,7 @@ Reachability analysis is done through a standard mark-and-sweep algorithm. The r
 all roots from all active threads, and looks through the memory of each data type that is pointer
 to by the roots. If any data type contains a \mc{Guard} or \mc{Ptr}, the address is marked as seen,
 and added to the frontier. When the frontier is empty, we have registered all reachable memory.
-Listing~\ref{lst:find-reachable} shows the algorithm, which is effectively breadth-first search
+\cref{lst:find-reachable} shows the algorithm, which is effectively breadth-first search
 through the memory graph.
 
 \begin{figure}[ht]
@@ -169,14 +169,14 @@ on how many shared memory pointers it contains, and can write these out to a buf
 a \code{Node} in a single linked list contains only one pointer, namely its next pointer, which is
 trivial to write out.
 
-The implementation of this uses \emph{Trait Objects} (Section~\ref{sec:trait-objects}), which involves
+The implementation of this uses \emph{Trait Objects} (\cref{sec:trait-objects}), which involves
 dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
 I-cache, although the number of misses is limited by the difference in data types in shared memory,
 which normally is smaller than in Rust memory.
 
 \begin{figure}[t]
   \begin{lstlisting}[caption=Definition of the \code{Trace} trait and a sample implementation for a
-  linked list node. The impementation uses \emph{specialization} (Section~\ref{sec:specialization})
+  linked list node. The impementation uses \emph{specialization} (\cref{sec:specialization})
   as the implementation of \code{Node}s containing data that itself is \code{Trace} is different.,
   numbers=left,
   numberstyle=\color{gray}\ttfamily{}T,
@@ -229,17 +229,17 @@ The \mc{Guard} is implemented as a single word, in addition to an empty type (th
 \code{PhantomData}) as Rust \emph{requires} generic types to be used. \mc{Guard}s aren't normally
 constructed directly (\todo{non movable types somewhere}), but rather declared with the
 \code{guard!} macro, which constructs it and calls \code{Guard::register}.
-An excerpt of the definitions of \mc{Guard} is shown in Listing~\ref{lst:guard-impl}.
+An excerpt of the definitions of \mc{Guard} is shown in \cref{lst:guard-impl}.
 \begin{figure}[t]
   \input{listings/guard}
 \end{figure}
 
 \todo{rewrite, focus on \code{register}}
+
 Since we need to keep track of type information dynamically, we construct a \code{GuardPointer}
 which does exactly this, and pushes it onto a thread local \code{Vec}, \code{ROOTS}.  It is also
-possible to construct a \mc{NullablePtr} from the \mc{Guard}.
-The \code{guard!} macro corresponds to make-guard (Eq. \ref{eq:make-guard}). copy-guard
-(Eq. \ref{eq:copy-guard}) is shown in the Listing.
+possible to construct a \mc{NullablePtr} from the \mc{Guard}.  The \code{guard!} macro corresponds
+to make-guard (\cref{eq:make-guard}). copy-guard (\cref{eq:copy-guard}) is shown in the Listing.
 
 Using a macro for declaring \mc{Guard}s is a trick that serves two purposes:
 \begin{enumerate*}[1) ]
@@ -247,7 +247,7 @@ Using a macro for declaring \mc{Guard}s is a trick that serves two purposes:
     \code{register} on it,
   and\item the user never gets a binding to a variable of type \code{Guard}, but only of type
     \code{\&mut Guard}, which prevents moving the \mc{Guard}, hence fulfulling the requirement of a
-    \mc{Guard} being non-movable from Definition~\ref{def:guard}.
+    \mc{Guard} being non-movable from \cref{def:guard}.
 \end{enumerate*}
 
 In addition to the \code{guard!} macro for declaring new \mc{Guard}s, CMR also defines the
@@ -286,8 +286,8 @@ oblivious to CMR, from allocating.
 
 This problem is not solved properly by CMR, but its effects are mitigated by wrapping the general
 allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be aquired by
-the reclamating thread (this is why we have~\coderef{R3} in Listing~\ref{lst:reclaimer}). This
-prevents most allocations of deadlocking, but not all. Rust uses pthreads internally for thread
+the reclamating thread (this is why we have~\coderef{R3} in \cref{lst:reclaimer}). This
+prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads} internally for thread
 handling on Linux, which allocates internally, both in \code{spawn} and \code{join}. The former may
 be circumvented by aquiring the allocation lock before calling it, but this is no solution for the
 latter, since the thread may depend on allocating before exiting.
@@ -329,7 +329,7 @@ fn atomic(f: F):
 
 \begin{theorem}
   If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
-  Definition~\ref{eq:atomic}.
+  \cref{eq:atomic}.
 \end{theorem}
 \begin{proof}
   \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be

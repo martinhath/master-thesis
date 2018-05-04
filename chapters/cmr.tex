@@ -6,9 +6,9 @@ queue, list, and hasmap, in the \code{cmr-data-structures} library, which uses \
 internally for memory reclamation.
 
 This chapter is organized as follows:
-Section~\ref{sec:cmr-overview} gives an overview of the system as a whole, and defines the problem
+Section~\cref{sec:cmr-overview} gives an overview of the system as a whole, and defines the problem
 we want to solve.
-Section~\ref{sec:cmr-primitives} defines the primitives of the system, how they interact, and
+Section~\cref{sec:cmr-primitives} defines the primitives of the system, how they interact, and
 proves their correctness.
 \todo{bla}
 
@@ -33,12 +33,12 @@ memory, which is managed by CMR\@. Note that there is a thin line in between the
 be handled by CMR, but they themselves may contain smart pointers which is then handled by Rust.
 For instance, a node in a linked list implemented using CMR may contain data that contains a smart
 pointer. When the node is freed, its destructor is ran, and the smart pointers cleanup is handled
-just as if it was not in shared memory (see Figure~\ref{fig:rust-shared-mem}).
+just as if it was not in shared memory (see \cref{fig:rust-shared-mem}).
 
 Since Rust manages Rust memory, we only need to do reachability queries in the shared memory
 subset. For many applications, this is a much smaller space than the total memory. It is also
 possible to have the data types that are referenced from shared memory but stored in Rust memory
-(like the binary tree in Figure~\ref{fig:rust-shared-mem}) know whether they have pointers to
+(like the binary tree in \cref{fig:rust-shared-mem}) know whether they have pointers to
 shared memory, so that we don't have to scan through the strucutre, as it may be arbitrary large.
 
 
@@ -108,7 +108,7 @@ system. Consider a mark-and-sweep approach, where we follow pointers and keep tr
 locations that we have seen before. Since we are running a concurrent system, pointers might be
 updated while we scan, so that two pointer values might be swapped after looking at either of them,
 making the other value invisible to the system, and causing memory to be registered as unreachable,
-when it is not. See Figure~\ref{fig:pointer-swap} for an example.
+when it is not. See \cref{fig:pointer-swap} for an example.
 
 \begin{figure}[ht]
   \centering
@@ -124,7 +124,7 @@ In order to handle mutation problems, we obtain a snapshot of the entire process
 freezing all threads, reading their roots, and forking the process. Thus, we have a snapshot of
 the entire memory of the program, in which we also have all roots. Now the reachability analysis is
 simpler, since there will be only one thread in the forked process, namely the garbage collecting
-thread. Listing~\ref{lst:cmr} shows pseudocode for both the reclaiming thread and the other threads
+thread. \cref{lst:cmr} shows pseudocode for both the reclaiming thread and the other threads
 for this procedure.
 
 \begin{figure}[ht]
@@ -161,7 +161,7 @@ on_freeze():
 The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
 pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By having
 access to all \code{Guard}s, CMR have access to all roots. \code{Guard}s are similar to hazard
-pointers (Section~\ref{sec:hazard-pointers}), except that no thread synchronization is performed
+pointers (\cref{sec:hazard-pointers}), except that no thread synchronization is performed
 when making new or updating existing \code{Guard}s, which reduces the overhead significantly.
 
 CMR has four types that are essential to understanding how we manage safe access to shared memory:
@@ -180,7 +180,7 @@ type of the data they protect; this is omitted for brevity. We look at each type
 \begin{definition}[NullablePtr]
   \emph{NullablePtr} is an immutable pointer that may be $\bot$. It is obtained through a Guard.
   When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable thoughout the
-  lifetime\footnote{We use the same meaning of lifetime as Rust (Section~\ref{sec:rust-lifetimes})}
+  lifetime\footnote{We use the same meaning of lifetime as Rust (\cref{sec:rust-lifetimes})}
   of $p$.
 \end{definition}
 
@@ -285,7 +285,7 @@ With these types and operations we are able to prove important properties of the
   of $p$, and $g$ is being changed. $g\sb{2}$ is valid by induction, so the pointer value in $a$ is
   reachable. This shows that the value read from the \mc{Atomic} is valid.
 
-  Using \mc{atomic} (Eq.~\ref{eq:atomic}), we make sure that the read of $a$ and the store in
+  Using \mc{atomic} (\cref{eq:atomic}), we make sure that the read of $a$ and the store in
   $g$ happens without a reclamation pass in between. Thus all valid pointers before the read is
   still valid after the store. After the store operation in $g$ has completed, $g$ protects $v$.
   Thus $v$ is valid.
@@ -296,10 +296,10 @@ With these types and operations we are able to prove important properties of the
 \end{lemma}
 \begin{proof}
   The  \mc{Ptr} $p$ is read from a \mc{Guard} $g$ and $g$ is immutable throughout the lifetime of
-  $p$ so they have the same value. $p \neq \bot$, so this follows by Theorem~\ref{thm:guard-valid}.
+  $p$ so they have the same value. $p \neq \bot$, so this follows by \cref{thm:guard-valid}.
 \end{proof}
 
-Lemma~\ref{lm:ptr-valid} is the most important result in this section, since it guarantees that
+\cref{lm:ptr-valid} is the most important result in this section, since it guarantees that
 accesses of the memory in a \mc{Ptr} is valid. Thus, a memory access through a \mc{Ptr} can result
-in a invalid-read (Def.~\ref{def:invalid-read}) or use-after-free (Def.~\ref{def:use-after-free})
+in a invalid-read (\cref{def:invalid-read}) or use-after-free (\cref{def:use-after-free})
 hazard.
