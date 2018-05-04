@@ -1,7 +1,7 @@
 \chapter{Implementation}
 
 In this chapter we look at the Rust implementation of CMR\@.  We look at four things: how thread
-freezing is implemented (Section~\ref{sec:signals}), how reachability analysis is done
+freezing is implemented (Section~\autoref{sec:signals}), how reachability analysis is done
 (Section~\ref{sec:reachability}), thread and process intercommunication
 (Section~\ref{sec:thread-communication}), and how the primitives and operations as defiend in
 Chapter~\ref{ch:cmr} are implemented (Section~\ref{sec:data-types}).
@@ -13,10 +13,10 @@ There is only at most one reclaimer at any time. The first thing a potential rec
 tries to do, is take the lock~\coderef{R2}. Then we take another lock that is used for
 allocation~\coderef{R3} (see Section~\ref{sec:alloc-lock}). This may block, but since we have not
 frozen any threads yet, any thread holding the lock will eventually release it, assuming it itself
-is not deadlocked. Next we initiate shared variables, such as the counters used by threads in their
-signal handler. After they are initialized, we freeze all threads~\coderef{R5}, and count how many
-threads were successfully frozen, which is used in~\coderef{R6} where we wait on all threads to
-finish their job. When done, the data that the threads write out, their \mc{Guard}s and
+is not deadlocked. Next we initialize shared variables, such as the counters used by threads in
+their signal handler. After they are initialized, we freeze all threads~\coderef{R5}, and count how
+many threads were successfully frozen, which is used in~\coderef{R6} where we wait on all threads
+to finish their job. When done, the data that the threads write out, their \mc{Guard}s and
 allocations, are read~\coderef{R7}.
 
 \begin{figure}[ht]

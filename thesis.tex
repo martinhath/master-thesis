@@ -1,4 +1,5 @@
-\documentclass[b5paper]{report}
+% \documentclass[b5paper,twoside,openright]{report}
+\documentclass[b5paper,twoside]{report}
 \usepackage[lmargin=25mm,rmargin=25mm,tmargin=27mm,bmargin=30mm]{geometry}
 
 \usepackage[T1]{fontenc}
@@ -8,7 +9,7 @@
 \usepackage{amssymb}
 \usepackage{color}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage[colorlinks,linkcolor=purple]{hyperref}
 % \usepackage{libertinust1math}
 \usepackage{libertine}
 \usepackage{inconsolata}
@@ -22,9 +23,12 @@
 \usepackage{xcolor}
 \usepackage{longtable}
 \usepackage[automake,acronym]{glossaries}
-% \usepackage{minitoc}
+
 \usepackage{fancyhdr}
 \pagestyle{fancy}
+\fancyhead[LO,RE]{\textsc{\leftmark}}
+\fancyhead[RO,LE]{\textsc{\rightmark}}
+
 
 \catcode`\_=12
 
@@ -82,11 +86,12 @@
 
 \tableofcontents
 \listoffigures
-\listoftables
+\listoftables%
 
-\chapter{Introduction}
 
-hey hello\cite{linus}
+\part{Bing Bong}
+
+\input{chapters/introduction}
 
 \input{chapters/background.tex}
 
@@ -94,14 +99,18 @@ hey hello\cite{linus}
 
 \input{chapters/cmr.tex}
 
+
+\part{Skrrra}
+
 \input{chapters/implementation}
 
-% TODO: own file
-\chapter{Methodology}
+\input{chapters/methodology}
 
-\section{Testing}
+\input{chapters/usage}
 
-\section{Benchmarking}
+\input{chapters/results}
+
+\input{chapters/conclusion}
 
 
 \printglossary[type=\acronymtype,title=Abbreviations]
