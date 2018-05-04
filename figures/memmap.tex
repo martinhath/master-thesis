@@ -1,0 +1,30 @@
+\begin{tikzpicture}[node distance=0.7cm]
+  \tikzstyle{mem} = [draw, fill=white, outer sep=0mm, minimum width=1cm,
+                     minimum height=0.5cm, node distance=0.5cm];
+  \tikzstyle{parent} = [fill=white,draw,minimum width=3.5cm]
+
+  \node (parent-label) {Parent Process};
+  \node [parent] (t1) [below of=parent-label] {$T\sb{1}$};
+  \node [parent] (t2) [below of=t1]           {$T\sb{2}$};
+  \node [parent] (t3) [below of=t2]           {$T\sb{3}$};
+  \node [parent] (bt) [below of=t3]           {Background Thread};
+
+  \node [fill=white,draw,minimum width=2cm, node distance=7cm] (t'2) [right of=t2] {$T'\sb{2}$};
+  \node (child-label) [above of=t'2] {Child Process};
+
+  \node [node distance=4cm] (mmap-label) [right of=parent-label] {\code{mmap}};
+  \node [mem] (m1) [below of=mmap-label] {\code{0xbeef}};
+  \node [mem] (m2) [below of=m1]         {\code{0xcafe}};
+  \node [mem] (m3) [below of=m2]         {\code{0xbabe}};
+  \node [mem] (m4) [below of=m3]         {\code{0xdead}};
+  \node [mem] (m5) [below of=m4]         {\code{0xabba}};
+
+  \begin{scope}[on background layer]
+    \node [draw,fit={(parent-label) (bt)},                 fill=gray!15] {};
+    \node [draw,fit={(child-label) (t'2)},                 fill=gray!15] {};
+    \node [draw,fit={(mmap-label) (m5)},inner sep=0mm,fill=gray!15] {};
+  \end{scope}
+
+  \draw[-latex] (bt.east) -| ($(bt.east)!0.5!(m1.west)$) |- (m1.west);
+  \draw[-latex] (t'2.west) -| ($(t'2.west)!0.5!(m4.east)$) |- (m4.east);
+\end{tikzpicture}

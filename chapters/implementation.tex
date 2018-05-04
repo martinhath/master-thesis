@@ -53,6 +53,14 @@ the memory map. Then we \code{fork()}. The child process does the reachability a
 writes the result after marker in the memory map. When it is done writing, it overwrites the marker
 with the number of elements written.
 
+\begin{figure}[b]
+  \centering
+  \input{figures/memmap}
+  \caption{Illustration of \gls{ipc} through a memory map. $T\sb{2}$ in the parent process is the
+  reclaiming thread, so $T\sb{2}$ is the one thread in the child process. Both processes have
+  access to the same memory in the memory map.}
+\end{figure}
+
 In order to minimize the delay of the reclamation pass from the point of view of the user, we spawn
 a background thread which handles the part of the reclamation performed after we \code{fork()}.
 This ensures that no user thread has to wait for the child process to finish its reachability
