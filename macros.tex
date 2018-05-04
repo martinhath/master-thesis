@@ -1,5 +1,4 @@
-\newcommand{\note}[1]{{\color{olive}\sffamily #1}}
-\newcommand{\todo}[1]{{\color{purple}\sffamily[TODO:\@ #1]}}
+\newcommand{\note}[1]{{\todo[backgroundcolor=olive]{\color{white}#1}}}
 \newcommand{\code}[1]{{\ttfamily #1}}
 \newcommand{\mc}[1]{{\ttfamily #1}}
 \newcommand{\coderef}[1]{(\texttt{#1})}
@@ -23,6 +22,8 @@ corners=0.02cm, font=\footnotesize}}
 \definecolor{lightred}{HTML}{FFA0AF}
 \definecolor{rust}{HTML}{FFE7C7}
 \definecolor{operator}{rgb}{0.4 0.4 0.4}
+\definecolor{theme1}{rgb}{0.5,0.1,0.5}
+\definecolor{theme2}{rgb}{0.1,0.5,0.5}
 
 \newacronym{ipc}{IPC}{Inter-Process Communication}
 \newacronym{tls}{TLS}{Thread-Local Storage}
@@ -42,7 +43,7 @@ corners=0.02cm, font=\footnotesize}}
 % extendedchars=true,           % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
 % frame=single,	                % adds a frame around the code
 % keepspaces=true,              % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
- keywordstyle=\color{purple},    % keyword style
+ keywordstyle=\color{theme1},    % keyword style
 %language=C,                    % the language of the code
  keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,default},
 % morekeywords={*,...},         % if you want to add more keywords to the set

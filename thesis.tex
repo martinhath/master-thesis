@@ -1,5 +1,5 @@
-\documentclass[b5paper,twoside,openright]{report}
-\usepackage[lmargin=25mm,rmargin=25mm,tmargin=27mm,bmargin=30mm]{geometry}
+\documentclass[b5paper, twoside]{report}
+\usepackage[lmargin=25mm, rmargin=25mm, tmargin=27mm, bmargin=30mm]{geometry}
 
 \usepackage[T1]{fontenc}
 \usepackage[toc]{appendix}
@@ -8,11 +8,12 @@
 \usepackage{amssymb}
 \usepackage{color}
 \usepackage{graphicx}
-\usepackage[colorlinks,linkcolor=purple]{hyperref}
+\usepackage[colorlinks, linkcolor=theme1, linktocpage,
+            citecolor=theme2]{hyperref}
 \usepackage{footnotebackref}
-\usepackage[capitalize,nameinlink]{cleveref}
+\usepackage[capitalize, nameinlink]{cleveref}
 \Crefname{lstlisting}{Listing}{Listings}
-
+\usepackage[colorinlistoftodos,prependcaption,textsize=footnotesize]{todonotes}
 % \usepackage{libertinust1math}
 \usepackage{libertine}
 \usepackage{inconsolata}
@@ -26,10 +27,29 @@
 \usepackage{xcolor}
 \usepackage{longtable}
 \usepackage[automake,acronym]{glossaries}
+\usepackage{titlesec}
+\usepackage{blindtext}
 
 \usepackage{fancyhdr}
+%   \fancyhf{}
 \fancyhead[LO,RE]{\textsc{\leftmark}}
 \fancyhead[RO,LE]{\textsc{\rightmark}}
+
+\titleformat{\part}[display]
+  {\center}
+  {\LARGE\scshape{\partname} \thepart}
+  {0ex}
+  {\Huge}
+
+\titleformat{\chapter}[display]
+  {\center}
+  {\large\scshape{\chaptertitlename} \thechapter}
+  {0ex}
+  {\huge}
+
+\titleformat*{\section}{\center\Large}
+\titleformat*{\subsection}{\center\large}
+\titleformat*{\subsubsection}{\center\bfseries\normalsize}
 
 
 \catcode`\_=12
@@ -57,13 +77,10 @@
 
 \begin{document}
 
+\renewcommand{\thepage}{\roman{page}}%
 
 \begin{titlepage}
   \centering
-  \begin{figure}[h]
-    \centering
-    \includegraphics{hovedlogo_eng.pdf}
-  \end{figure}
   \vspace{1.5cm}
   {\Large TDT4900: Masters Thesis \par}
   \vspace{1cm}
@@ -73,16 +90,14 @@
   \vfill
   supervised by\par
   {\large Magnus Lie Hetland}\\
-  \vspace{0.2cm}
+  \vspace{0.4cm}
   co-supervised by\par
   {\large Dan Alistarh}\\
-  \vspace{1cm}
+  \vfill
   {\large \today\\}
 \end{titlepage}
 
 \input{macros.tex}
-
-
 
 \input{chapters/abstract}
 
@@ -91,10 +106,13 @@
 
 \tableofcontents%
 \listoffigures%
-\listoftables%
+% \listoftables%
 
-
+\clearpage\null
+\clearpage\setcounter{page}{1}%breakbreak
+\renewcommand{\thepage}{\arabic{page}}%
 \part{Bing Bong}
+
 \pagestyle{fancy}
 
 \input{chapters/introduction}
@@ -118,6 +136,9 @@
 
 \input{chapters/conclusion}
 
+\begin{appendices}
+  \chapter{Her ja}
+\end{appendices}
 
 \printglossary[type=\acronymtype,title=Abbreviations]
 \printglossary{}
@@ -126,8 +147,5 @@
 \addcontentsline{toc}{chapter}{Bibliography}
 \bibliography{sources}
 
-\begin{appendices}
-  \chapter{Her ja}
-\end{appendices}
 
 \end{document}

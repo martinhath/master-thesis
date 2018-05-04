@@ -116,8 +116,8 @@ something?}
 The system has a fixed upper bound on the number of threads that may be active at any time, through
 the \code{thread_datas} vector, which is pre-allocated with a fixed size \todo{check this out}.
 
-Since a thread handler may have registered it leaving by decrementing \code{thread_counters[0]},
-but then preempted before leaving the handler, CMR uses \code{pthread_sigqueue} instead of the more
+Since a thread handler may have registered it leaving by decrementing \\\code{sh_enter_counter},
+but then preempted before leaving the handler, CMR uses \\\code{pthread_sigqueue} instead of the more
 standard \code{pthread_kill}, as \gls{pthreads} may simply ignore a signal that is sent to a
 thread when that thread is already in the signal handler for a given signal.
 This is problematic, since the reclaimer keeps carefully track of where threads are in their
