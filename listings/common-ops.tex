@@ -1,0 +1,13 @@
+\begin{lstlisting}[caption=Commonly used operations defined by CMR.]
+pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>£ -> NullablePtr<'a, T> {
+    atomic(|| { let p = unsafe { a.load(SeqCst£ };
+                guard.inner = ptr::raw(p£;
+                p }£
+}
+
+pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
+    let ptr = alloc::alloc(t);
+    guard.inner = ptr::addr(ptr);
+    alloc::register(ptr);
+    ptr
+}\end{lstlisting}

@@ -1,0 +1,5 @@
+%[caption=Stack struct definitions,label=lst:stack-def]
+\begin{lstlisting}
+struct Stack<T> { top: SharedGuard<Node<T>>, }
+struct Node<T> { data: ManuallyDrop<T>, next: Atomic<Node<T>>, }
+\end{lstlisting}

@@ -1,5 +1,5 @@
 thesis-martin-hafskjold-thoresen.pdf: thesis.tex macros.tex sources.bib
-	PDFLATEX_FLAGS="-shell-escape" latex-mk -b --pdflatex thesis
+	latex-mk -b --pdflatex thesis
 
 
 clean:

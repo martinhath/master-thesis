@@ -67,12 +67,12 @@ hazards:
 
 invalid-read is the least frequent of the three, as it requires the programmer to conjure a pointer
 out of thin air, since it has never been allocated in the system.\ use-after-free is the most
-hazarous of the three, as program behaviour is often undefined when freed values are read \todo{ref
-UB}; in many language implementations undefined behavious means that the entire program is illegal,
-and one cannot assume anything about its behaviour.\ double-free is technically not a memory
-hazard, as the operating system can check for the validity of pointers that are freed. This is
-often not done in practice, and POSIXs definition of \code{free} states that it is undefined
-behaviour to pass a non-allocated pointer to \code{free}.  \todo{check this.}
+hazarous of the three, as program behaviour is often undefined when freed values are read
+\fixme{05/05 16:09 ref UB}; in many language implementations undefined behavious means that the
+entire program is illegal, and one cannot assume anything about its behaviour.\ double-free is
+technically not a memory hazard, as the operating system can check for the validity of pointers
+that are freed. This is often not done in practice, and POSIXs definition of \code{free} states
+that it is undefined behaviour to pass a non-allocated pointer to \code{free}\cite{posix}.
 
 We will show that CMR guarantees that neither of the three hazards is possible in safe Rust.
 
@@ -153,7 +153,7 @@ on_freeze():
 \end{figure}
 
 
-\todo{define ``Rust memory'' and shared memory}
+\fixme{define ``Rust memory'' and shared memory}
 
 \section{Primitives of CMR\label{sec:cmr-primitives}}
 
@@ -166,6 +166,7 @@ when making new or updating existing \code{Guard}s, which reduces the overhead s
 CMR has four types that are essential to understanding how we manage safe access to shared memory:
 \emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
 type of the data they protect; this is omitted for brevity. We look at each type in turn.
+
 
 \begin{definition}[Guard\label{def:guard}]
   A \emph{Guard} is an object that contains a \emph{root}. The Guard is non-movable in memory.
@@ -250,7 +251,7 @@ The actual address is obtained through \emph{addr}
 
 \subsection{Ptr}
 
-\todo{Reconsider having NullablePtr in here. I think its mostly a rust impl thing, as we just want
+\fixme{Reconsider having NullablePtr in here. I think its mostly a rust impl thing, as we just want
 Deref on Ptr but must handle null as well.}
 Ptr may be used in the place of NullablePtr, since is it just a special case of it. All functions
 that take a NullablePtr can also take a Ptr.

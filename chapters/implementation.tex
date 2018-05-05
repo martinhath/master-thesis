@@ -44,7 +44,7 @@ run_reclaim_pass(£ {
 \end{figure}
 
 When \code{fork()}ing the child process continues the thread of the parent process that called
-\code{fork()}, such that it has access to everything that the original thread had\todo{rewrite}.
+\code{fork()}, such that it has access to everything that the original thread had\fixme{rewrite}.
 As such, we don't need to communicate from parent to child. However, the job of the child process
 is to run reachability analysis, and we do need its result. CMR uses \emph{memory map}
 (\cref{sec:memory-map}) for \gls{ipc}\@, which is set up before the fork. Since we need to
@@ -106,15 +106,15 @@ index in the range $[0, n)$, where $n$ is the number of threads signaled. This i
 in~\coderef{SH4}, where each thread writes out their guards and allocations into the global vector
 \code{thread_datas}. We then register that we have written our data~\coderef{SH5}, and wait for the
 reclaimer to unfreeze us~\coderef{SH6}.
-\todo{Since we don't know that we have exited the handler after SH6, do we really need SH7??}
+\fixme{Since we don't know that we have exited the handler after SH6, do we really need SH7??}
 
 
 
 The signal handler is registered by a thread with a call to the \code{thread_activate} procedure,
-which must be called before the thread is using CMR\@. \todo{bench automation of this in Guard or
+which must be called before the thread is using CMR\@. \fixme{bench automation of this in Guard or
 something?}
 The system has a fixed upper bound on the number of threads that may be active at any time, through
-the \code{thread_datas} vector, which is pre-allocated with a fixed size \todo{check this out}.
+the \code{thread_datas} vector, which is pre-allocated with a fixed size \fixme{check this out}.
 
 Since a thread handler may have registered it leaving by decrementing \\\code{sh_enter_counter},
 but then preempted before leaving the handler, CMR uses \\\code{pthread_sigqueue} instead of the more
@@ -162,7 +162,7 @@ $\textsc{find-reachable(Roots)}$
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
 types can be arbitrarily large, in addition to that memory might not be initialized, and false
-positives. Instead of scanning through the memory block linearily, \note{should write somewhere why
+positives. Instead of scanning through the memory block linearily, \fixme{should write somewhere why
 we can assume that the ptr is the start of a block} CMR has a Trait called \code{Trace}, which all
 data types that is in shared memory must implement.  A type implementing \code{Trace} knows a bound
 on how many shared memory pointers it contains, and can write these out to a buffer. For instance,
@@ -174,33 +174,8 @@ dynamic dispatch. This solution is potentially expensive, as it may involve cahc
 I-cache, although the number of misses is limited by the difference in data types in shared memory,
 which normally is smaller than in Rust memory.
 
-\begin{figure}[t]
-  \begin{lstlisting}[caption=Definition of the \code{Trace} trait and a sample implementation for a
-  linked list node. The impementation uses \emph{specialization} (\cref{sec:specialization})
-  as the implementation of \code{Node}s containing data that itself is \code{Trace} is different.,
-  numbers=left,
-  numberstyle=\color{gray}\ttfamily{}T,
-  ]
-pub trait Trace {
-    fn count(&self) -> usize { 0 }
-    fn write(&self, &mut [TraitObject]) -> usize { 0 }
-}
-pub struct Node<T> {
-    data: ManuallyDrop<T>,
-    next: Atomic<Node<T>>,
-}
-impl<T> cmr::Trace for Node<T> {
-    default fn count(&self) -> usize { 1 }
-    default fn write(&self, slice: &mut [TraitObject]) -> usize {
-        let p = unsafe { self.next.load(SeqCst) };
-        if !p.is_null() {
-            slice[0] = ptr::trait_object(p);
-            1
-        } else {
-            0
-        }
-    }
-}\end{lstlisting}
+\begin{figure}[ht]
+  \input{listings/trace}
 \end{figure}
 
 \code{Trace} contains default implementations of the two functions, such that primitive types can
@@ -223,18 +198,19 @@ in the reachability analysis.
 In this section we look at the concrete Rust implementation of selected data types and operations,
 and argue for their correctness.
 
+
 \subsubsection{\mc{Guard}}
 
 The \mc{Guard} is implemented as a single word, in addition to an empty type (the
 \code{PhantomData}) as Rust \emph{requires} generic types to be used. \mc{Guard}s aren't normally
-constructed directly (\todo{non movable types somewhere}), but rather declared with the
+constructed directly (\fixme{non movable types somewhere}), but rather declared with the
 \code{guard!} macro, which constructs it and calls \code{Guard::register}.
 An excerpt of the definitions of \mc{Guard} is shown in \cref{lst:guard-impl}.
 \begin{figure}[t]
   \input{listings/guard}
 \end{figure}
 
-\todo{rewrite, focus on \code{register}}
+\fixme{rewrite, focus on \code{register}}
 
 Since we need to keep track of type information dynamically, we construct a \code{GuardPointer}
 which does exactly this, and pushes it onto a thread local \code{Vec}, \code{ROOTS}.  It is also
@@ -260,15 +236,26 @@ In addition to the \code{guard!} macro for declaring new \mc{Guard}s, CMR also d
 slightly. CMR defines its own type so that we can defide on the return types of certain functions.
 We include the definition of the \code{struct}, as well as \code{cas}, the compare-and-swap
 operation, in which we utilize some Traits from the Rust standard library to convert between types.
-\todo{write a little here}
+\fixme{write a little here}
 
-\begin{figure}[hb]
+\begin{figure}[ht]
   \input{listings/atomic}
 \end{figure}
 
-\section{Complications}
 
-\note{something something pitfalls}
+\subsubsection{Common Operations}
+
+\fixme{Change the name}
+\fixme{write about \code{guard} and \code{cmr::alloc}}
+\begin{figure}[ht]
+  \input{listings/common-ops}
+\end{figure}
+
+
+\section{Complications}
+\blindtext%
+
+\fixme{something something pitfalls}
 
 \subsection{Locks in libc\label{sec:alloc-lock}}
 
@@ -291,9 +278,9 @@ prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads} 
 handling on Linux, which allocates internally, both in \code{spawn} and \code{join}. The former may
 be circumvented by aquiring the allocation lock before calling it, but this is no solution for the
 latter, since the thread may depend on allocating before exiting.
-\todo{deactivate/reactivate around joins?}
+\fixme{deactivate/reactivate around joins?}
 
-\todo{add example or something here}
+\fixme{add example or something here}
 
 
 
@@ -310,9 +297,9 @@ Consolidation starts by sending all running threads a \emph{signal}, causing the
 garbage collection pass is detectable. Then the thread writes out the address of a thread local
 list of allocated addresses, such that the consolidator can collect all addresses that has been
 allocated since the last consolidation. At last, the threads wait for the consolidator to say that
-they may return to their execution. \note{why is this required?}
+they may return to their execution. \fixme{why is this required?}
 
-\note{Add implementation details here}
+\fixme{Add implementation details here}
 
   \code{WAS\_SIGNALED} is a thread local flag that is
   set to \code{true} in the signal handler. Note that this function does not support being called
@@ -347,7 +334,7 @@ function, but that they only got execution time after \code{A3}.
   If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
   and is lock-free, it will either make progress, or some other thread is making progress. In
   either case, the system makes progress.
-  \note{this is a terrible proof}
+  \fixme{this is a terrible proof}
 \end{proof}
 
 It is important that the function given to \code{atomic} can be called multiple times without

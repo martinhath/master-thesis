@@ -1,5 +1,6 @@
 \documentclass[b5paper, twoside]{report}
 \usepackage[lmargin=25mm, rmargin=25mm, tmargin=27mm, bmargin=30mm]{geometry}
+% \usepackage[a4,center,frame]{crop}
 
 \usepackage[T1]{fontenc}
 \usepackage[toc]{appendix}
@@ -13,7 +14,11 @@
 \usepackage{footnotebackref}
 \usepackage[capitalize, nameinlink]{cleveref}
 \Crefname{lstlisting}{Listing}{Listings}
-\usepackage[colorinlistoftodos,prependcaption,textsize=footnotesize]{todonotes}
+\usepackage[colorinlistoftodos,
+            textsize=footnotesize,
+            linecolor=none,
+            bordercolor=none,
+            backgroundcolor=none]{todonotes}
 % \usepackage{libertinust1math}
 \usepackage{libertine}
 \usepackage{inconsolata}
@@ -37,7 +42,7 @@
 
 \titleformat{\part}[display]
   {\center}
-  {\LARGE\scshape{\partname} \thepart}
+  {\Large\scshape{\partname} \thepart}
   {0ex}
   {\Huge}
 
@@ -108,7 +113,9 @@
 \listoffigures%
 % \listoftables%
 
-\clearpage\null
+\listoftodos[Resolve These Things]
+
+\clearpage\null%
 \clearpage\setcounter{page}{1}%breakbreak
 \renewcommand{\thepage}{\arabic{page}}%
 \part{Bing Bong}
