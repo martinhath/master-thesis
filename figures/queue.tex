@@ -6,19 +6,17 @@
                           draw,
   }}
 
-  \node [struct] (struct) {\code{head}\nodepart{second}\code{tail}};
-
-  \node [lnode, node distance=1.2cm] (n2) [below of=struct] {3};
-  \node [lnode,rectangle split part fill={gray, white}] (n1) [left of=n2]      {\null};
-  \node [lnode] (n3) [right of=n2]     {1};
-  \node [lnode] (n4) [right of=n3]     {4\nodepart{second}$\bot$};
+  \node [lnode,rectangle split part fill={gray, white}] (n1)               {\null};
+  \node [lnode]                                         (n2) [right of=n1] {3};
+  \node [lnode]                                         (n3) [right of=n2] {1};
+  \node [lnode]                                         (n4) [right of=n3] {4\nodepart{second}$\bot$};
 
   \draw [circlebase,-latex] ($(n1.center)!0.5!(n1.east)$) -- (n2);
   \draw [circlebase,-latex] ($(n2.center)!0.5!(n2.east)$) -- (n3);
   \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- (n4);
-  % \draw [circlebase,-latex] ($(n4.center)!0.5!(n4.east)$) -- ($(n4) + (1,0)$);
 
-  \draw [-latex] (struct.west) -| (n1.north);
-  \draw [-latex] (struct.east) -| (n4.north);
+  \node [struct] (struct) at ($(n1)!0.5!(n4) + (0,1)$) {\code{head}\nodepart{second}\code{tail}};
 
+  \draw [-latex] (struct.west) to [out=180, in=90] (n1.north);
+  \draw [-latex] (struct.east) to [out=0, in=90] (n4.north);
 \end{tikzpicture}

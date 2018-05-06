@@ -84,8 +84,7 @@ results of the the \code{cas} where we set the tail to the node we just inserted
 fails, it just means that some other thread came along and noticed that \code{tail} was not the
 real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 
-
-\begin{figure}[b]
+\begin{figure}[ht]
 \centering
 \input{figures/queue}
 \caption{The Michael-Scott Queue. The first node in the queue is a sentinel node.}
@@ -93,15 +92,22 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 
 
 
-
-\clearpage
-
 \section{Lock-free List}
 
 \fixme{06/05 19:14 insert more stuf here. Show some ops? Image? Should at least talk about pointer tagging}
 Michael introduced a concurrent List in~\cite{michael2002high}. The list is similar to the
 Stack from \cref{sec:usage-stack}, but we support more operations than \code{push} and \code{pop},
 including queries and removals.
+
+\fixme{06/05 19:29 \code{List::remove} in here}
+\cref{fig:list-remove} illustrates the double removal problem.
+
+\begin{figure}[ht]
+\centering
+\input{figures/list-remove}
+\caption{Double removal with \code{List::remove}\label{fig:list-remove}.}
+\end{figure}
+
 
 Many of the most interesting operations on the List involves iterating through the list. Due to the
 ownership and lifetime rules that Rust imposes, it may be tricky to implement typical iteration

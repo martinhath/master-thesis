@@ -1,0 +1,60 @@
+\begin{subfigure}[b]{\textwidth}
+  \centering
+  \begin{tikzpicture}
+  \tikzset{n/.style={fill=white,node distance=1.5cm, rectangle split, rectangle
+           split horizontal, rectangle split parts=2, draw, rounded
+           corners=0.05cm,font=\footnotesize}}
+    \node [n,label=below:A] (n1)               {2};
+    \node [n,label=below:B] (n2) [right of=n1] {7};
+    \node [n,label=below:C] (n3) [right of=n2] {8};
+
+    \draw [-latex] ($(n1.west) - (1,0)$) -- (n1.west);
+    \draw [circlebase,-latex,color=theme3!75] ($(n1.center)!0.5!(n1.east)$) -- (n2);
+    \draw [circlebase,-latex] ($(n2.center)!0.5!(n2.east)$) -- (n3);
+    \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- ($(n3) + (1.1,0)$);
+    \draw [circlebase,-latex,color=theme3!75] ($(n1.center)!0.5!(n1.east)$)  to [bend left]
+    (n3.west);
+  \end{tikzpicture}
+  \caption{$T\sb{1}$ calls \code{cas(A.next, B, C)}.}
+\end{subfigure}
+
+\begin{subfigure}[b]{\textwidth}
+  \centering
+  \begin{tikzpicture}
+  \tikzset{n/.style={fill=white,node distance=1.5cm, rectangle split, rectangle
+           split horizontal, rectangle split parts=2, draw, rounded
+           corners=0.05cm,font=\footnotesize}}
+    \node [n,label=below:A]             (n1)                 {2};
+    \node [n,label=below:B]             (n2)  [right of=n1]  {7};
+    \node [n,label=below:X,draw=theme2] (n2') [right of=n2]  {1};
+    \node [n,label=below:C]             (n3)  [right of=n2'] {8};
+
+    \draw [-latex] ($(n1.west) - (1,0)$) -- (n1.west);
+    \draw [circlebase,-latex,color=theme3!75] ($(n1.center)!0.5!(n1.east)$) -- (n2);
+    \draw [circlebase,-latex,color=theme2] ($(n2.center)!0.5!(n2.east)$) -- (n2');
+    \draw [circlebase,-latex,color=theme2] ($(n2'.center)!0.5!(n2'.east)$) -- (n3);
+    \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- ($(n3) + (1.1,0)$);
+    \draw [circlebase,-latex,color=theme3!75] ($(n1.center)!0.5!(n1.east)$) to [bend left] (n3.west);
+  \end{tikzpicture}
+  \caption{$T\sb{2}$ inserts X before the \code{cas}.}
+\end{subfigure}
+
+\begin{subfigure}[b]{\textwidth}
+  \centering
+  \begin{tikzpicture}
+  \tikzset{n/.style={fill=white,node distance=1.5cm, rectangle split, rectangle
+           split horizontal, rectangle split parts=2, draw, rounded
+           corners=0.05cm,font=\footnotesize}}
+    \node [n,label=below:A]                            (n1)                 {2};
+    \node [n,label=below:\color{gray!70}B,draw=gray!70] (n2)  [right of=n1]  {\color{gray!70}7};
+    \node [n,label=below:\color{gray!70}X,draw=gray!70] (n2') [right of=n2]  {\color{gray!70}1};
+    \node [n,label=below:C]                            (n3)  [right of=n2'] {8};
+
+    \draw [-latex] ($(n1.west) - (1,0)$) -- (n1.west);
+    \draw [circlebase,-latex,color=gray!50] ($(n2.center)!0.5!(n2.east)$) -- (n2');
+    \draw [circlebase,-latex,color=gray!50] ($(n2'.center)!0.5!(n2'.east)$) -- (n3);
+    \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- ($(n3) + (1.1,0)$);
+    \draw [circlebase,-latex,color=theme3!75] ($(n1.center)!0.5!(n1.east)$) to [bend left] (n3.west);
+  \end{tikzpicture}
+  \caption{The \code{cas} succeeds. Both B and X are removed.}
+\end{subfigure}
