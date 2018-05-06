@@ -1,6 +1,6 @@
 \newcommand{\fixme}[1]{{\color{black}\todo{#1}}}
 
-\newcommand{\code}[1]{{\ttfamily #1}}
+\newcommand{\code}[1]{{\color{darkred}\ttfamily #1}}
 \newcommand{\mc}[1]{{\ttfamily #1}}
 \newcommand{\coderef}[1]{(\texttt{#1})}
 
@@ -42,21 +42,24 @@ corners=0.02cm, font=\footnotesize}}
 \definecolor{darkred}{HTML}{A02020}
 
 \definecolor{rust}{HTML}{FFE7C7}
-\definecolor{operator}{rgb}{0.4 0.4 0.4}
+\definecolor{operator}{HTML}{004b84}
+
 \definecolor{theme1}{rgb}{0.5,0.1,0.5}
 \definecolor{theme2}{rgb}{0.1,0.5,0.5}
+\definecolor{theme3}{rgb}{0.1,0.1,0.5}
 \definecolor{none}{rgb}{1.0,1.0,1.0}
 
 
 \newacronym{ipc}{IPC}{Inter-Process Communication}
 \newacronym{tls}{TLS}{Thread-Local Storage}
 \newacronym{pthreads}{{\code{pthreads}}}{POSIX threads}
+\newacronym{nll}{NLL}{Non-Lexical Lifetimes}
 
 
 \lstset{%
  backgroundcolor=\color{white},
  basicstyle=\footnotesize\ttfamily,
- breaklines=true,
+% breaklines=true,
 % captionpos=b,
  commentstyle=\color{gray},
  columns=flexible,
@@ -84,7 +87,7 @@ corners=0.02cm, font=\footnotesize}}
  {;}{{\Operator{;}}}1
  {:}{{\Operator{:}}}1
  {.}{{\Operator{.}}}1
- {£}{{\Operator{)}}}1
+ {)}{{\Operator{)}}}1
  {|}{{\Operator{|}}}1
  {*}{{\Operator{*}}}1
  {!}{{\Operator{!}}}1

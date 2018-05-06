@@ -1,0 +1,16 @@
+\begin{lstlisting}[label=lst:msqueue,
+                   caption=The \code{push} operation on a Michael-Scott Queue.,
+                   numbers=left, numberstyle=\color{gray}\ttfamily{}MS,
+                   ]
+impl<T> MsQueue<T> {
+    pub fn push(&self, t: T) {
+        guards!(_new_node, _tail, _next);
+        let new_node = cmr::alloc(_new_node, Node::new(t));
+        loop { let tail = cmr::guard(_tail, &self.tail).ptr().unwrap();
+               let next_ptr = &tail.next;
+               let ptr = cmr::guard(_next, next_ptr);
+               if ptr::addr(ptr) != 0 { let _ = self.tail.cas(tail, ptr, SeqCst); }
+               else if next_ptr.cas(ptr::null(), new_node, SeqCst).is_ok() {
+                   let _ = self.tail.cas(tail, new_node, SeqCst);
+                   break; } } } }
+\end{lstlisting}

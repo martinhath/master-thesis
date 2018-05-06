@@ -26,21 +26,21 @@ allocations, are read~\coderef{R7}.
     caption=Pseudocode of the work of the reclaimer,
     label=lst:reclaimer,
   ]
-run_reclaim_pass(£ {
-    if reclaim_lock.lock(£.fail(£ { return }
-    lock_malloc(£
-    init_shared_vars(£
-    n = freeze_threads(£
-    while sh_done_counter.load(£ != n { wait(£ }
-    (guards, allocs£ = read_thread_datas(£
-    memory_map = mmap(£
-    write_marker(memory_map£
-    if fork(£ == Child {
-        rs = find_reachable(£
-        write_to_mmap(rs, memory_map£
-        exit(0£ }
-    sh_frozen.store(false£
-    send_to_background_thread(allocs, memory_map£ }\end{lstlisting}
+run_reclaim_pass() {
+    if reclaim_lock.lock().fail() { return }
+    lock_malloc()
+    init_shared_vars()
+    n = freeze_threads()
+    while sh_done_counter.load() != n { wait() }
+    (guards, allocs) = read_thread_datas()
+    memory_map = mmap()
+    write_marker(memory_map)
+    if fork() == Child {
+        rs = find_reachable()
+        write_to_mmap(rs, memory_map)
+        exit(0) }
+    sh_frozen.store(false)
+    send_to_background_thread(allocs, memory_map) }\end{lstlisting}
 \end{figure}
 
 When \code{fork()}ing the child process continues the thread of the parent process that called
@@ -86,13 +86,13 @@ function, and threads are signaled with \code{pthread_sigqueue}.
     label=lst:signal-handler,
   ]
 if is_in_cleanup:
-    clean_up_and_return(£
-id = sh_enter_counter.fetch_add(1£
-write_out_data_to(thread_datas[id]£
-sh_done_counter.fetch_add(1£
-while sh_frozen.load(£:
-    wait(£
-sh_enter_counter.fetch_sub(1£\end{lstlisting}
+    clean_up_and_return()
+id = sh_enter_counter.fetch_add(1)
+write_out_data_to(thread_datas[id])
+sh_done_counter.fetch_add(1)
+while sh_frozen.load():
+    wait()
+sh_enter_counter.fetch_sub(1)\end{lstlisting}
 \end{figure}
 
 Due to a complication in which a threads shutdown procedure is initiated without the signal handler

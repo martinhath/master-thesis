@@ -5,18 +5,18 @@ struct Stack<T> { top: SharedGuard<Node<T>>, }
 struct Node<T> { data: ManuallyDrop<T>, next: Atomic<Node<T>>, }
 
 impl<T> Stack<T> {
-    pub fn push(&self, t: T£ {
-        guards!(_new_top, _top£;
-        let mut new_top = cmr::alloc(_new_top, Node::new(t££;
-        loop { let top = cmr::guard(_top, &self.top£;
-               unsafe { new_top.get_mut(£.next = Atomic::new(top£; }
-               if self.top.cas(top, new_top, SeqCst£.is_ok(£ { break; } } }
+    pub fn push(&self, t: T) {
+        guards!(_new_top, _top);
+        let mut new_top = cmr::alloc(_new_top, Node::new(t));
+        loop { let top = cmr::guard(_top, &self.top);
+               unsafe { new_top.get_mut().next = Atomic::new(top); }
+               if self.top.cas(top, new_top, SeqCst).is_ok() { break; } } }
 
-    pub fn pop(&self£ -> Option<T> {
-        guards!(_top, _next£;
-        loop { let top = cmr::guard(_top, &self.top£.ptr(£?;
-               let next = cmr::guard(_next, &top.next£;
-               if self.top.cas(top, next, SeqCst£.is_ok(£ {
-                   let node = unsafe { top.move_out(£ };
-                   return Some(node.data(££; } } } }
+    pub fn pop(&self) -> Option<T> {
+        guards!(_top, _next);
+        loop { let top = cmr::guard(_top, &self.top).ptr()?;
+               let next = cmr::guard(_next, &top.next);
+               if self.top.cas(top, next, SeqCst).is_ok() {
+                   let node = unsafe { top.move_out() };
+                   return Some(node.data()); } } } }
 \end{lstlisting}

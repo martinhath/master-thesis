@@ -5,15 +5,15 @@ struct Guard<T> {
 }
 impl<T: Trace> Guard<T> {
     pub unsafe fn new() -> Self { Guard { inner: 0, _marker: PhantomData, } }
-    pub fn copy_guard(&mut self, other: &Self£ { self.inner = other.inner; }
-    pub fn register(&mut self£ {
-        ROOTS.with(|r| { let mut v = r.borrow_mut(£;
-                         v.push(GuardPointer::from_guard(self££ }£;
+    pub fn copy_guard(&mut self, other: &Self) { self.inner = other.inner; }
+    pub fn register(&mut self) {
+        ROOTS.with(|r| { let mut v = r.borrow_mut();
+                         v.push(GuardPointer::from_guard(self)) });
     }
     ...
 }
 macro_rules! guard {
-    ($var:ident£ => { let $var = unsafe { &mut $crate::guard::Guard::new(£ };
-                      $var.register(£;
+    ($var:ident) => { let $var = unsafe { &mut $crate::guard::Guard::new() };
+                      $var.register();
     }
 }\end{lstlisting}

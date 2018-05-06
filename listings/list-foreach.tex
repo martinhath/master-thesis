@@ -1,0 +1,8 @@
+\begin{lstlisting}[caption=Implementation of \code{List::for_each} using the \code{Entry} API.]
+pub fn for_each<F: Fn(&T)>(&self, f: F) {
+    guards!(_a, _b);
+    let mut entry = self.entry(_a, _b);
+    while let Some(ptr) = entry.current().ptr() {
+        f(ptr.data());
+        if entry.step().is_err() { break; } } }
+\end{lstlisting}

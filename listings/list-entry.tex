@@ -1,0 +1,15 @@
+\begin{lstlisting}[caption=The \code{Entry} API from the List implementation,
+                   label={lst:list-entry}]
+pub struct Entry<'a, T: 'a> {
+    current: &'a mut cmr::guard::Guard<Node<T>>,
+    previous: &'a mut cmr::guard::Guard<Node<T>>,
+}
+impl<'a, T> Entry<'a, T> {
+    pub fn step(&mut self) -> Result<T>;
+    pub fn current(&'a self) -> cmr::NullablePtr<'a, Node<T>>;
+    pub fn previous(&'a self) -> cmr::NullablePtr<'a, Node<T>>;
+    pub fn insert_between(&self, mut new_node: ptr::Ptr<Node<T>>) -> Result<T>;
+    pub fn delete(&self) -> Result<T>;
+    pub fn seek_with<F>(&mut self, f: F) -> Result<T> where F: Fn(&T) -> bool;
+}
+\end{lstlisting}

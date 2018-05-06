@@ -6,10 +6,10 @@ pub struct Atomic<T> {
 impl<T> Atomic<T> {
     pub fn cas<'a, A, B>(&self, a: A, b: B, ordering: Ordering)
      -> Result<A, NullablePtr<'a, T>> {
-        let (old, new£ = (raw(a£, raw(b££;
-        let ret = self.data.compare_and_swap(old, new, ordering£;
-        if ret == old { Ok(A::try_from(NullablePtr::new(ret££.unwrap(££ }
-        else { Err(NullablePtr::new(ret££ }
+        let (old, new) = (raw(a), raw(b));
+        let ret = self.data.compare_and_swap(old, new, ordering);
+        if ret == old { Ok(A::try_from(NullablePtr::new(ret)).unwrap()) }
+        else { Err(NullablePtr::new(ret)) }
     }
     ...
 }

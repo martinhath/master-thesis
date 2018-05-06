@@ -1,7 +1,7 @@
 \chapter{Usage of CMR}
 \blindtext{}
 
-\section{Stack}
+\section{Lock-free Stack\label{sec:usage-stack}}
 
 \begin{figure}[b]
 \centering
@@ -21,28 +21,29 @@ We look at each one in turn. Construction of the stack is omitted for brevity.
 
 \subsubsection{Push}
 
-\fixme{After writing \ref{sec:common-patterns}, revisit this}
+\fixme{06/05 19:14 After writing \ref{sec:common-patterns}, revisit this}
 \code{push} allocates the stack node itself, so it takes the value we want to push onto the stack
-\coderef{ST5}. We start out by declaring two \mc{Guard}s \coderef{ST6}: one for the new node we
+\coderef{ST5}. We start out by declaring two \code{Guard}s \coderef{ST6}: one for the new node we
 allocate, and one for the head of the stack. We must protect the head of the stack, since the node
 may be removed after we read its address, and we would have a dangling pointer.  Next we allocate a
 new \code{node} \coderef{ST7}, which is done outside the retry loop so that we only have to
 allocate one time per call to \code{push}. Now we enter the retry loop, which we repeat until we
 succeed in changing the top pointer of the stack to our new node.
 The top node is read \coderef{ST8}, and the \code{next} pointer of the new node is set to the head
+\fixme{06/05 19:14 write something on \code{unsafe} here}
 \coderef{ST9}. If we succeed of chaning the \code{top}  pointer of the stack to our new node, we
 break out of the loop and return \coderef{ST10}. If not, we retry until we do.
 
 
 \subsubsection{Pop}
 
-\code{pop} is similar to \code{push}. We declare two \mc{Guard}s \coderef{ST13}, but this time they
+\code{pop} is similar to \code{push}. We declare two \code{Guard}s \coderef{ST13}, but this time they
 are for the first and second node in the stack. We read the \code{top} pointer \coderef{ST14}, and
 return from the function if it is \code{null} using the \code{?} Rust operator. We then read the
 next pointer of the node \coderef{ST15}; here the \code{null} case is the same as the
 non-\code{null} case. We try to swap the head pointer from the first to the second node
 \coderef{ST16}; if we fail we restart, and if we succeed we move out the \code{Node} from the
-\mc{Guard}. This is an \code{unsafe} operation, as the type is copied out of its original place,
+\code{Guard}. This is an \code{unsafe} operation, as the type is copied out of its original place,
 effectively aliasing it. At last, the data is returned.
 
 As an example of why reading and returning the node data is \code{unsafe} in the general case,
@@ -50,15 +51,39 @@ consider two threads $T\sb{1}$ and $T\sb{2}$ using a \code{Stack<Box<T>>}. $T\sb
 a node $n$, and $T\sb{2}$ is \code{pop}ping $n$ from the stack, getting the \code{Box<T>} back from
 it. Now $T\sb{2}$ \code{drop}s the \code{Box}, which frees the pointer. If $T\sb{1}$ decides to
 look at the data in $n$, it will dereference a freed pointer, which is a use-after-free
-(\cref{def:use-after-free}). \fixme{fix this argument please} Despite being \code{unsafe} in the
+(\cref{def:use-after-free}). \fixme{06/05 19:14 fix this argument please} Despite being \code{unsafe} in the
 general case, it is safe for the implementation of the stack as presented, since no operation on
 the stack looks at the data of a node, except in \coderef{ST17}, where only one thread may be for
 any given node, since we succeed the \code{cas} operation.
 
 
-\section{Michael-Scott Queue}
-\fixme{refs here pls}
-skra
+
+
+\section{Lock-free Queue\label{sec:usage-queue}}
+
+
+\fixme{06/05 19:14 refs here pls. Explain how it works?}
+The queue implemented is based on the well known Michael-Scott Queue from~\cite{michael1996simple}.
+\code{push} is shown in \cref{lst:msqueue}; \code{pop} is omitted due to its similarity with
+\code{Stack::pop}.
+
+\begin{figure}[ht]
+\input{listings/msqueue}
+\end{figure}
+
+We start out by declaring three \code{Guard}s \coderef{MS3}: one for the new node, one for the
+current tail, and one for the tails \code{next} node, which may be present.  We load \code{tail}
+\coderef{MS5}, and its \code{next} pointer \coderef{SM7}.  Since the Michael-Scott queue is always
+non-empty, we know that the \code{head} is non-\code{null}, and it is therefore safe to promote the
+\code{NullablePtr} to a \code{Ptr} using \code{.unwrap()}.  If the next pointer is non-\code{null}
+the node we believed was the tail was not the tail after all. We try to swing \code{tail} from the
+node we read, to its next node \coderef{MS8} before restarting.  If the tail was \code{null} we try
+to \code{cas} its next field from \code{null} to our new node \coderef{MS9}. If we succeed, we
+\code{cas} the tail to our node and exit. If we fail, we restart.  Note that we do not check the
+results of the the \code{cas} where we set the tail to the node we just inserted; if this operation
+fails, it just means that some other thread came along and noticed that \code{tail} was not the
+real tail, and \code{cas}ed it to the last node \coderef{MS8}.
+
 
 \begin{figure}[b]
 \centering
@@ -66,11 +91,63 @@ skra
 \caption{The Michael-Scott Queue. The first node in the queue is a sentinel node.}
 \end{figure}
 
-\section{Split-Order List}
-\blindtext{}
+
+
+
+\clearpage
+
+\section{Lock-free List}
+
+\fixme{06/05 19:14 insert more stuf here. Show some ops? Image? Should at least talk about pointer tagging}
+Michael introduced a concurrent List in~\cite{michael2002high}. The list is similar to the
+Stack from \cref{sec:usage-stack}, but we support more operations than \code{push} and \code{pop},
+including queries and removals.
+
+Many of the most interesting operations on the List involves iterating through the list. Due to the
+ownership and lifetime rules that Rust imposes, it may be tricky to implement typical iteration
+and juggle pointers around. For this reason, the API uses an indirection for iterating through the
+list: \code{Entry}.
+
+\begin{figure}[ht]
+\input{listings/list-entry}
+\end{figure}
+
+An \code{Entry} is like a pointer into the list, which can \code{step()} to the next node, get a
+pointer to the \code{current()} node, \code{remove} the current node, insert a new node between
+(\code{insert_between}) two nodes, and find nodes which data satisfies arbitrary closures
+\code{F(T) -> bool}.  Since there is some overhead in declaring a \code{Guard}, \code{Entry}
+contains two references to \code{Guard}s rather than the \code{Guard}s themselves. This makes
+construting a \code{Guard} nearly free.  Another implication of this is that \code{Entry} is
+movable in memory (as \code{Guard} is not).
+
+This indirection simplifies many operations, and we barely need to deal with lifetime and ownership
+issues, although it almost requires \gls{nll} (\cref{sec:nll}) to use.
+
+\begin{figure}[ht]
+\input{listings/list-foreach}
+\end{figure}
+
+
+
+
+\subsection{Split-Ordered List}
+
+Split-Ordered Lists were introduced in~\cite{shalev2006split}. The
+
+
+
+
+
 
 \section{Concurrent HashMap}
 \blindtext{}
+
+
+
+
+
+
+
 
 \section{Crossbeam Integration}
 \blindtext{}
