@@ -18,6 +18,24 @@ corners=0.02cm, font=\footnotesize}}
 \tikzset{text/.style={regular polygon, regular polygon sides=4 }}
 \tikzset{ptr/.style={{Circle[black, length=3pt]}-latex}}
 \tikzset{ptr-g/.style={{Circle[lightgray, length=3pt]}-latex}}
+% Dotted start for arrows.
+\tikzset{
+    circlebase/.style={
+        decoration={
+            markings,
+            mark={
+                at position 0
+                with {
+                    \draw [fill] circle [radius=#1];
+                }
+            }
+        },
+        postaction=decorate
+    },
+    circlebase/.default=0.5mm
+}
+
+
 
 \definecolor{lightblue}{HTML}{AFE0FF}
 \definecolor{lightred}{HTML}{FFA0AF}

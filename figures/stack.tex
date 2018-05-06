@@ -1,0 +1,37 @@
+\begin{tikzpicture}
+\tikzset{lnode/.style={node distance=2cm, rectangle split, rectangle
+         split horizontal, rectangle split parts=2, draw, rounded
+         corners=0.05cm,font=\footnotesize,fill=white}}
+
+  \node [draw] (head)  {\code{head}};
+  \node [lnode, node distance=3cm] (n1) [right of=head] {1};
+  \node [lnode] (n2) [right of=n1] {4};
+  \node [lnode] (n3) [right of=n2] {1};
+
+  \draw [circlebase,-latex] ($(n1.center)!0.5!(n1.east)$) -- (n2);
+  \draw [circlebase,-latex] ($(n2.center)!0.5!(n2.east)$) -- (n3);
+  \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- ($(n3) + (1,0)$);
+
+  \node [lnode] (t1n) at ($(head.east)!0.5!(n1.west) + (0, 1.5)$) {3};
+  \draw[circlebase,-latex] ($(t1n.center)!0.5!(t1n.east)$) -- (n1);
+  \node (t1) [left of=t1n] {$T\sb{1}$};
+
+  \node [lnode] (t2n) at ($(head.east)!0.5!(n1.west) - (0, 1.5)$) {4};
+  \draw[circlebase,-latex] ($(t2n.center)!0.5!(t2n.east)$) -- (n1) ;
+  \node (t2) [left of=t2n] {$T\sb{2}$};
+
+
+  \draw[-latex,color=theme1!15] (head.east) to [out=0,in=198] ($(t1n.south)!0.8!(n1.west)$);
+  \draw[-latex,color=theme1!30] (head.east) to [out=0,in=216] ($(t1n.south)!0.6!(n1.west)$);
+  \draw[-latex,color=theme1!45] (head.east) to [out=0,in=234] ($(t1n.south)!0.4!(n1.west)$);
+  \draw[-latex,color=theme1!60] (head.east) to [out=0,in=252] ($(t1n.south)!0.2!(n1.west)$);
+  \draw[-latex,color=theme1!75] (head.east) to [out=0,in=270] (t1n.south);
+
+  \draw[-latex,color=theme2!15] (head.east) to [out=0,in=161] ($(t2n.north)!0.8!(n1.west)$);
+  \draw[-latex,color=theme2!30] (head.east) to [out=0,in=144] ($(t2n.north)!0.6!(n1.west)$);
+  \draw[-latex,color=theme2!45] (head.east) to [out=0,in=126] ($(t2n.north)!0.4!(n1.west)$);
+  \draw[-latex,color=theme2!60] (head.east) to [out=0,in=108] ($(t2n.north)!0.2!(n1.west)$);
+  \draw[-latex,color=theme2!75] (head.east) to [out=0,in=90] (t2n.north);
+
+  \draw [-latex] (head) -- (n1);
+\end{tikzpicture}

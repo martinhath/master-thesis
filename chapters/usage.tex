@@ -3,19 +3,68 @@
 
 \section{Stack}
 
-We begin by looking at an implementation of a conurrent stack, which is arguably the simplest
-concurrent data strucutre. The definitions of the \code{Stack} and \code{Node} structs is as
-follows:
-%in \cref{lst:stack-def}
-\input{listings/stack-def}
+\begin{figure}[b]
+\centering
+\input{figures/stack}
+\caption{$T\sb{1}$ and $T\sb{2}$ both tries to swap the \code{head} pointer towards their
+node.}
+\end{figure}
 
-Skra bing bong
+We begin by looking at an implementation of a conurrent stack, which is arguably the simplest
+concurrent data strucutre. The definitions of the \code{Stack} and \code{Node} structs and the two
+most important operations on a stack, \code{push} and \code{pop}, is shown in \cref{lst:stack-ops}.
+We look at each one in turn. Construction of the stack is omitted for brevity.
+
 \begin{figure}[ht]
 \input{listings/stack-ops}
 \end{figure}
 
+\subsubsection{Push}
+
+\fixme{After writing \ref{sec:common-patterns}, revisit this}
+\code{push} allocates the stack node itself, so it takes the value we want to push onto the stack
+\coderef{ST5}. We start out by declaring two \mc{Guard}s \coderef{ST6}: one for the new node we
+allocate, and one for the head of the stack. We must protect the head of the stack, since the node
+may be removed after we read its address, and we would have a dangling pointer.  Next we allocate a
+new \code{node} \coderef{ST7}, which is done outside the retry loop so that we only have to
+allocate one time per call to \code{push}. Now we enter the retry loop, which we repeat until we
+succeed in changing the top pointer of the stack to our new node.
+The top node is read \coderef{ST8}, and the \code{next} pointer of the new node is set to the head
+\coderef{ST9}. If we succeed of chaning the \code{top}  pointer of the stack to our new node, we
+break out of the loop and return \coderef{ST10}. If not, we retry until we do.
+
+
+\subsubsection{Pop}
+
+\code{pop} is similar to \code{push}. We declare two \mc{Guard}s \coderef{ST13}, but this time they
+are for the first and second node in the stack. We read the \code{top} pointer \coderef{ST14}, and
+return from the function if it is \code{null} using the \code{?} Rust operator. We then read the
+next pointer of the node \coderef{ST15}; here the \code{null} case is the same as the
+non-\code{null} case. We try to swap the head pointer from the first to the second node
+\coderef{ST16}; if we fail we restart, and if we succeed we move out the \code{Node} from the
+\mc{Guard}. This is an \code{unsafe} operation, as the type is copied out of its original place,
+effectively aliasing it. At last, the data is returned.
+
+As an example of why reading and returning the node data is \code{unsafe} in the general case,
+consider two threads $T\sb{1}$ and $T\sb{2}$ using a \code{Stack<Box<T>>}. $T\sb{1}$ is looking at
+a node $n$, and $T\sb{2}$ is \code{pop}ping $n$ from the stack, getting the \code{Box<T>} back from
+it. Now $T\sb{2}$ \code{drop}s the \code{Box}, which frees the pointer. If $T\sb{1}$ decides to
+look at the data in $n$, it will dereference a freed pointer, which is a use-after-free
+(\cref{def:use-after-free}). \fixme{fix this argument please} Despite being \code{unsafe} in the
+general case, it is safe for the implementation of the stack as presented, since no operation on
+the stack looks at the data of a node, except in \coderef{ST17}, where only one thread may be for
+any given node, since we succeed the \code{cas} operation.
+
+
 \section{Michael-Scott Queue}
-\blindtext{}
+\fixme{refs here pls}
+skra
+
+\begin{figure}[b]
+\centering
+\input{figures/queue}
+\caption{The Michael-Scott Queue. The first node in the queue is a sentinel node.}
+\end{figure}
 
 \section{Split-Order List}
 \blindtext{}
