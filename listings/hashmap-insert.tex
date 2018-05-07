@@ -2,51 +2,34 @@
 label=lst:hashmap-insert,
 caption=Implementation of \code{HashMap::insert}.,
 numbers=left, numberstyle=\color{gray}\ttfamily{}HI,
-escapeinside={@*}{*@}
+escapeinside={@*}{*@},
 ]
 impl<K, V> HashMap<K, V> {
     pub fn insert(&self, k: K, v: V) {
         let (bucket, rev_hash) = self.bucket_and_revhash(&k);
+        let curr: cmr::Ptr<_> = self.get_or_insert_bucket(bucket);
+        guards!(_new_node, _curr, _prev, _r1, _r2);
         let node_data = Entry::Value((rev_hash, k, v));
-        let curr = self.get_or_insert_bucket(bucket);
-        guards!(_new_node, _curr, _prev);
         let mut new_node = cmr::alloc(_new_node, list::Node::new(node_data));
         'restart: loop {
             let mut entry = list::Entry::from_node_ptr(curr, _curr, _prev);
-            if entry.seek_with(|entry| entry.hash() >= rev_hash).is_err() {
-                @*$\big<\textit{\sffamily end of list case}\big>$*@
-            }
-            match entry.current().ptr().unwrap().data() {
-                Entry::Sentinel(h) if *h == rev_hash => {
-                    match entry.step() {
-                        Err(list::Error::NotConsecutive) |
-                        Err(list::Error::IllegalState) => continue 'restart,
-                        _ => {} } }
-                _ => {} }
+            let res = entry.seek_with(|e| match e {
+                &Entry::Value((h, ref key, _)) => h >= rev_hash,
+                &Entry::Sentinel(h) => h > rev_hash });
+            if let Err(list::Error::Empty) = res {
+                unsafe { new_node.get_mut().next = cmr::Atomic::null(); }
+                let prev = entry.previous().ptr().unwrap();
+                let ret = prev.next.cas(ptr::null(), new_node, Ordering::SeqCst);
+                if let Err(_prev_next) = ret { continue 'restart; }
+                break 'restart; }
+            if res.is_err() { continue 'restart; }
             if entry.insert_between(new_node).is_err() { continue 'restart; }
-            'outer: while let Some(curr) = entry.current().ptr() {
-                if curr.data().hash() != rev_hash { break; }
+            let mut entry = list::Entry::from_node_ptr(new_node, _r1, _r2);
+            if entry.step().is_err() { break; }
+            while let Some(curr) = entry.current().ptr() {
+                if curr.data().hash() > rev_hash { break; }
                 if curr.data().key() == new_node.data().key() {
-                    loop {
-                        let n = unsafe { curr.next.load(Ordering::SeqCst) };
-                        if ptr::tag(n) == 1 { break 'outer; }
-                        match curr.next.cas(n, ptr::with_tag(n, 1), Ordering::SeqCst) {
-                            Ok(_) => break 'outer,
-                            Err(p) if ptr::tag(p) == 1 => break 'outer,
-                            _ => {}
-                        }
-                    }
-                }
-                let res = entry.step();
-                if let Err(list::Error::IllegalState) = res { panic!("wtf"); }
-            }
-            break;
-        }
-        let c = self.count.fetch_add(1, Ordering::Relaxed);
-        let len = self.length.load(Ordering::Relaxed);
-        if c as f32 / len as f32 > THRESHOLD {
-            if len * 2 > MAX_LEN { panic!("Aiai, this is a problem!"); }
-            self.length.compare_and_swap(len, len * 2, Ordering::SeqCst);
-        }
-    }}
+                    if entry.delete().is_err() { break; }; } }
+            break; }
+        self.increment_length(); } }
 \end{lstlisting}

@@ -7,7 +7,8 @@
 \newcommand{\rustc}{\code{rustc}}
 \newcommand{\cargo}{\code{cargo}}
 \newcommand{\rustup}{\code{rustup}}
-\newcommand{\Operator}[1]{{\color{operator}#1}}
+
+\newcommand{\lit}[1]{$\big<\textit{\sffamily #1}\big>$}
 
 \tikzset{auto}
 \tikzset{lnode/.style={node distance=2.5cm, rectangle split, rectangle
@@ -56,16 +57,16 @@ corners=0.02cm, font=\footnotesize}}
 \newacronym{nll}{NLL}{Non-Lexical Lifetimes}
 
 
+\newcommand{\Operator}[1]{{\color{operator}#1}}
 \lstset{%
  backgroundcolor=\color{white},
  basicstyle=\footnotesize\ttfamily,
 % breaklines=true,
 % captionpos=b,
- commentstyle=\color{gray},
  columns=flexible,
  keywordstyle=\color{theme1},
-%language=C,
- keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,default,ref},
+ keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,
+           default,ref,break,continue},
 % morekeywords={*,
  numbers=none,
  numbersep=5pt,
@@ -84,6 +85,7 @@ corners=0.02cm, font=\footnotesize}}
  {+}{{\Operator{+}}}1
  {-}{{\Operator{-}}}1
  {=}{{\Operator{=}}}1
+ {_}{{\Operator{_}}}1
  {;}{{\Operator{;}}}1
  {:}{{\Operator{:}}}1
  {.}{{\Operator{.}}}1

@@ -15,12 +15,12 @@
       {Child Process};
   \node [child]             (t'2)         [below of=child-label]  {$T'\sb{2}$};
 
-  \node (mmap-label) at ($(parent-label.east)!0.5!(child-label.west)$) {\code{mmap}};
-  \node [mem] (m1) [below of=mmap-label] {\code{0xbeef}};
-  \node [mem] (m2) [below of=m1]         {\code{0xcafe}};
-  \node [mem] (m3) [below of=m2]         {\code{0xbabe}};
-  \node [mem] (m4) [below of=m3]         {\code{0xdead}};
-  \node [mem] (m5) [below of=m4]         {\code{0xabba}};
+  \node (mmap-label) at ($(parent-label.east)!0.5!(child-label.west)$) {\texttt{mmap}};
+  \node [mem] (m1) [below of=mmap-label] {\texttt{0xbeef}};
+  \node [mem] (m2) [below of=m1]         {\texttt{0xcafe}};
+  \node [mem] (m3) [below of=m2]         {\texttt{0xbabe}};
+  \node [mem] (m4) [below of=m3]         {\texttt{0xdead}};
+  \node [mem] (m5) [below of=m4]         {\texttt{0xabba}};
 
   \begin{scope}[on background layer]
     \node [padbox,fit={(parent-label) (bt)}] {};

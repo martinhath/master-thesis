@@ -94,13 +94,19 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 
 \section{Lock-free List}
 
-\fixme{06/05 19:14 insert more stuf here. Show some ops? Image? Should at least talk about pointer tagging}
-Michael introduced a concurrent List in~\cite{michael2002high}. The list is similar to the
+\fixme{07/05 22:22 insert more stuf here?}
+Michael introduced a concurrent List in~\cite{harris2001pragmatic}. The list is similar to the
 Stack from \cref{sec:usage-stack}, but we support more operations than \code{push} and \code{pop},
-including queries and removals.
+including queries and removals, and insertions into the list. Definitions of \code{List} are very
+similar to that of the \code{Stack} and \code{Queue}, and is therefore omitted here.
 
-\fixme{06/05 19:29 \code{List::remove} in here}
-\cref{fig:list-remove} illustrates the double removal problem.
+Having arbitrary \code{insert} and \code{remove} opens for a problem known as \emph{double-remove},
+shown in \cref{fig:list-remove}. Let there be two threads in the system $T\sb{1}$ and $T\sb{2}$,
+and let A, B, and C be three consecutive nodes in the list. If $T\sb{1}$ wants to remove the B
+node, there is a small window in which $T\sb{2}$ may insert a new node, X, between B and C. When
+$T\sb{1}$s \code{cas} operation succeeds --- note that \code{A.next} was not touched by $T\sb{2}$
+--- it will accidently swing the pointer past the new node X without noticing. This is a variant of
+the ABA problem (\cref{sec:aba-problem}).
 
 \begin{figure}[ht]
 \centering
@@ -108,6 +114,19 @@ including queries and removals.
 \caption{Double removal with \code{List::remove}\label{fig:list-remove}.}
 \end{figure}
 
+A solution to this problem, as shown by Harris in~\cite{michael2002high}, is to exploit memory
+alignment on modern CPU architectures: \code{struct}s are \emph{aligned} in memory, meaning their
+address is a multiple of some power of two. This causes the least significant bits of their address
+to always be zero; bits that may be used for other purposes. We use the least significant bit in
+the \code{.next} field in a node for a \emph{tag}, signaling that the node is logically deleted,
+and should not be acted upon. To see how this helps the problem as shown above, $T\sb{1}$ would
+start out the deletion process of B by calling \code{cas(B.next, C, with_tag(C, 1))}. Should this
+fail, $T\sb{1}$ can just read \code{B.next} again, and retry. When it succeeds, it may try to
+\code{cas} \code{A.next} over B to C. Now $T\sb{2}$ realizes that it should not insert X between B
+and C, since it reads the tag of B, realizing that it was deleted.
+
+
+\subsection{The Entry API}
 
 Many of the most interesting operations on the List involves iterating through the list. Due to the
 ownership and lifetime rules that Rust imposes, it may be tricky to implement typical iteration
@@ -210,16 +229,42 @@ search succeeded, so we return \code{true}, and \code{false} otherwise.
 \end{figure}
 
 
+\fixme{07/05 22:25 remove this}
+\filbreak%
 \subsection{Insert}
-
 \code{HashMap::insert} is more complicated, as there are multiple things that can go wrong, and
-that some operations require cleanup. 
+that some operations require cleanup.
 
-
-\begin{figure}[ht]
 \input{listings/hashmap-insert}
-\end{figure}
 
+We start out by hashing the \code{key}, finding the reverse hash \coderef{HI3} and the bucket of
+the sentienl node, and a pointer to the node is acquired \coderef{HI4}. We declare five (!)
+\code{Guard}s \coderef{HI5}, and \code{alloc} our new node \coderef{HI7}.
+Next we make our \code{entry} from the sentinel \coderef{HI9}, and find the correct place to put
+our new node \coderef{HI10}. The new node is put before any other nodes with the same hash, but
+after the sentinel node, should their hashes be the same. We insert the new node in front of the
+old nodes so that other threads will see the most recently updated node first. The result of this
+operation has three cases:
+\begin{enumerate*}[1) ]
+  \item we fail with \code{Empty} which means we got to the end of the list, and is handled by
+    inserting the new node at the end of the list  \coderef{HI14},
+  \item we fail with another failure case and restart \coderef{HI19}, and
+  \item we succeed and actually insert our new node into the list \coderef{HI20}, where we, again,
+    restart upon failure.
+\end{enumerate*}
+
+After insertion we must check for other nodes with the same key, since there should only be one
+entry for any given key in the map \coderef{HI21}. This is done by making a new \code{Entry} with
+the new node, \code{step}ping once, so that the \code{current} node is not our new node, and
+\code{delete()} any node that has the right key.  When we hit a node which hash is more than our
+own, we are done \coderef{HI24}.  Since the map is generic over the key type \code{K}, comparing
+the type for equality might be expensive. Therefore, we check the hash before checking the key for
+equality \coderef{HI25}.
+
+\code{HashMap::insert} contains a single \code{unsafe} block: \coderef{HI14}. This operation is
+\code{unsafe} since we are mutating \code{new_node}, which potentially could cause a race condition
+if the node was concurrently read by another thread. However, we know that it is not read by any
+other thread, since we have not been succesfull yet in inserting it into the list.
 
 
 
