@@ -2,7 +2,7 @@
 
 \newcommand{\code}[1]{{\color{darkred}\ttfamily #1}}
 \newcommand{\mc}[1]{{\ttfamily #1}}
-\newcommand{\coderef}[1]{(\texttt{#1})}
+\newcommand{\coderef}[1]{(\texttt{\color{operator}#1})}
 
 \newcommand{\rustc}{\code{rustc}}
 \newcommand{\cargo}{\code{cargo}}
@@ -65,7 +65,7 @@ corners=0.02cm, font=\footnotesize}}
  columns=flexible,
  keywordstyle=\color{theme1},
 %language=C,
- keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,default},
+ keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,default,ref},
 % morekeywords={*,
  numbers=none,
  numbersep=5pt,

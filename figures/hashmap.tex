@@ -1,0 +1,40 @@
+\begin{tikzpicture}
+\tikzset{lnode/.style={node distance=1.25cm, rectangle split, rectangle
+         split horizontal, rectangle split parts=2, draw, rounded
+         corners=0.05cm,font=\footnotesize}}
+  \tikzset{struct/.style={rectangle split, rectangle split horizontal, rectangle split parts=2, draw}}
+  \tikzset{stnl/.style={rectangle split part fill={gray, white}}}
+  \tikzset{arr/.style={draw, outer sep=0pt, node distance=5mm, minimum width=5mm,minimum height=5mm}}
+
+  \node [lnode,stnl,label=above:\scriptsize\code{0(0)}] (s1)               {\null};
+  \node [lnode     ,label=above:\scriptsize\code{0(0)}] (n1) [right of=s1] {\code{h}};
+  \node [lnode     ,label=above:\scriptsize\code{4(1)}] (n2) [right of=n1] {\code{e}};
+  \node [lnode,stnl,label=above:\scriptsize\code{1(4)}] (s2) [right of=n2] {\null};
+  \node [lnode     ,label=above:\scriptsize\code{5(5)}] (n3) [right of=s2] {\code{l}};
+  \node [lnode     ,label=above:\scriptsize\code{5(5)}] (n4) [right of=n3] {\code{l}};
+  \node [lnode,stnl,label=above:\scriptsize\code{3(6)}] (s3) [right of=n4] {\null};
+  \node [lnode     ,label=above:\scriptsize\code{7(7)}] (n5) [right of=s3] {\code{o}};
+
+
+  \draw [circlebase,-latex] ($(s1.center)!0.5!(s1.east)$) -- (n1);
+  \draw [circlebase,-latex] ($(n1.center)!0.5!(n1.east)$) -- (n2);
+  \draw [circlebase,-latex] ($(n2.center)!0.5!(n2.east)$) -- (s2);
+  \draw [circlebase,-latex] ($(s2.center)!0.5!(s2.east)$) -- (n3);
+  \draw [circlebase,-latex] ($(n3.center)!0.5!(n3.east)$) -- (n4);
+  \draw [circlebase,-latex] ($(n4.center)!0.5!(n4.east)$) -- (s3);
+  \draw [circlebase,-latex] ($(s3.center)!0.5!(s3.east)$) -- (n5);
+
+  \draw [circlebase,-latex] ($(n5.center)!0.5!(n5.east)$) -- ($(n5.east) + (0.5,0)$);
+
+
+  \node [arr,            ,label=below:\scriptsize\code{0}] (a1) at ($(s2) - (0,1.5)$) {};
+  \node [arr,            ,label=below:\scriptsize\code{1}] (a2) [right of=a1]         {};
+  \node [arr,fill=gray!30,label=below:\scriptsize\code{2}] (a3) [right of=a2]         {};
+  \node [arr,            ,label=below:\scriptsize\code{3}] (a4) [right of=a3]         {};
+
+
+  \draw[circlebase,-latex] (a1.center) |- ($(a1.north)!0.33!(s1.south)$) -| (s1.south);
+  \draw[circlebase,-latex] (a2.center) |- ($(a2.north)!0.66!(s2.south)$) -| (s2.south);
+  \draw[-]                 (a3.south west) -- (a3.north east);
+  \draw[circlebase,-latex] (a4.center) |- ($(a4.north)!0.5!(s3.south)$) -| (s3.south);
+\end{tikzpicture}

@@ -73,7 +73,7 @@ The queue implemented is based on the well known Michael-Scott Queue from~\cite{
 
 We start out by declaring three \code{Guard}s \coderef{MS3}: one for the new node, one for the
 current tail, and one for the tails \code{next} node, which may be present.  We load \code{tail}
-\coderef{MS5}, and its \code{next} pointer \coderef{SM7}.  Since the Michael-Scott queue is always
+\coderef{MS5}, and its \code{next} pointer \coderef{MS7}.  Since the Michael-Scott queue is always
 non-empty, we know that the \code{head} is non-\code{null}, and it is therefore safe to promote the
 \code{NullablePtr} to a \code{Ptr} using \code{.unwrap()}.  If the next pointer is non-\code{null}
 the node we believed was the tail was not the tail after all. We try to swing \code{tail} from the
@@ -121,7 +121,7 @@ list: \code{Entry}.
 An \code{Entry} is like a pointer into the list, which can \code{step()} to the next node, get a
 pointer to the \code{current()} node, \code{remove} the current node, insert a new node between
 (\code{insert_between}) two nodes, and find nodes which data satisfies arbitrary closures
-\code{F(T) -> bool}.  Since there is some overhead in declaring a \code{Guard}, \code{Entry}
+\code{Fn(T) -> bool}.  Since there is some overhead in declaring a \code{Guard}, \code{Entry}
 contains two references to \code{Guard}s rather than the \code{Guard}s themselves. This makes
 construting a \code{Guard} nearly free.  Another implication of this is that \code{Entry} is
 movable in memory (as \code{Guard} is not).
@@ -136,20 +136,89 @@ issues, although it almost requires \gls{nll} (\cref{sec:nll}) to use.
 
 
 
+
+
+
+\section{Lock-free Hash Table}
+
+The hash table is a versatile and popular data structure. It is widely used due to its constant time
+operations, including queries, insertions, and removals.
+
+Lock-free hash tables are interesting for the same reasons. Despite the interest, designing a
+concurrent hash table turns out to be a difficult problem. Blabl, resize
+Most hash tables are split up in \emph{buckets}, such that the hash of the elements within a bucket
+share some property (eg.\ a common prefix). Increasing the number of buckets is knows as
+\emph{resizing}, which makes sure that the number of elements in each bucket is limited; many
+algorithms and hash functions give bounds on the number of elements in each bucket.
+
 \subsection{Split-Ordered List}
 
-Split-Ordered Lists were introduced in~\cite{shalev2006split}. The
+We start by describing the \emph{Split-Ordered List}. Split-Ordered Lists were introduced
+in~\cite{shalev2006split}. The nodes in the list is ordered by the \emph{reverse hash} of the value
+in the node. In addition, the list contains \emph{sentinel nodes}, which are the beginnings of the
+buckets in the hash table. By making the number of buckets $b=2\sp{k}$ we can double $b$ when the
+load factor is too high, and insert one more sentinel node between each of the nodes already
+present, effectively differentiating between one new bit of the reverse hash.
+
+\subsection{Hash Table}
+\fixme{07/05 17:00 Clean up these sections. Maybe have only one section?}
+
+Using the Split-Ordered List we can implement a concurrent hash table by having an array of
+pointers to sentinel nodes, and a ``size'' of the bucket array. If a sentinel pointer is
+\code{null}, then the node is not yet in the table. When inserting a new element into the table, we
+first find the sentinel node that precedes the node we want to insert (the \emph{parent}); this is
+known, since we know the ordering of the nodes in the list --- the reverse hash. However, due to
+the resizing method, the parent may not have been inserted yet. If not, we can simply recurse on
+the insertion method, and insert the parent first. Then, we simply iterate through the list, and
+find the place in which our new node should be. Assuming a small load factor, this is a fast
+operation.
+
+\begin{figure}[ht]
+\centering
+\input{figures/hashmap}
+\caption{The Split-Ordered List. Node labels shows the \code{hash} and its reverse in
+parenthesis.\label{fig:split-order-list}}
+\end{figure}
+
+\cref{fig:split-order-list} shows the split-ordered list with a table size of $4$. The nodes in the
+list are ordered by the reverse of their hash (shown in parenthesis). Given a node \code{n}, we
+find the sentinel node that should preceed it in the list by taking \code{hash(n) \% table_size}.
+Note that this is not the reverse hash. For instance,
+inserting a node where \code{hash(n) == 7}, we look in bucket \code{7 \% 4 == 3}, and iterate from
+sentinel node 3.
+Inserting a node where \code{hash(n) == 10}, we would get \code{bucket = 2}, which is \code{null},
+so we need to insert the sentinel node first.
 
 
+We look at $n$ operations on the hash table: \code{contains}, \code{insert}, $and\ maybe\ more$.
+
+\subsection{Contains}
+
+\cref{lst:hashmap-contains} shows the implementation of \code{HashMap::contains}. The
+implementation of utility functions such as \code{bucket_and_revhash} are omitted for brevity.  We
+find the \code{parent} node \coderef{HC4}, and use the \code{Entry} API from \code{List}
+\coderef{HC6} to look for the first node which hash and key is the same; if we encounter a node
+which hash is more than our node, we know that we have gone too far. \code{Entry::seek_with_opt}
+lets us break out of the search early by returning \code{None} \coderef{HC10}. If we find a node
+with both the right hash and the right key, we return \code{Some(true)} from the
+closure \coderef{HC11}, and \code{seek_with_opt} returns \code{Ok}. If we get back \code{Ok}, the
+search succeeded, so we return \code{true}, and \code{false} otherwise.
 
 
+\begin{figure}[ht]
+\input{listings/hashmap-contains}
+\end{figure}
 
 
-\section{Concurrent HashMap}
-\blindtext{}
+\subsection{Insert}
+
+\code{HashMap::insert} is more complicated, as there are multiple things that can go wrong, and
+that some operations require cleanup. 
 
 
-
+\begin{figure}[ht]
+\input{listings/hashmap-insert}
+\end{figure}
 
 
 

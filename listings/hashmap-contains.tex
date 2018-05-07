@@ -1,0 +1,20 @@
+\begin{lstlisting}[
+label=lst:hashmap-contains,
+caption=Implementation of \code{HashMap::contains}.,
+numbers=left, numberstyle=\color{gray}\ttfamily{}HC,
+]
+impl<K, V> HashMap<K, V> {
+    pub fn contains(&self, k: &K) -> bool {
+        let (bucket, rev_hash) = self.bucket_and_revhash(k);
+        let curr = self.get_or_insert_bucket(bucket);
+        guards!(_curr, _prev);
+        let mut entry = list::Entry::from_node_ptr(curr, _curr, _prev);
+        entry.seek_with_opt(|data|
+            Some(match data {
+                &Entry::Value((h, ref key, _)) => {
+                    if h > rev_hash { return None; }
+                    else { h == rev_hash && k == key }
+                }
+                _ => false })
+        ).is_ok() } }
+\end{lstlisting}
