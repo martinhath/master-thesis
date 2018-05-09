@@ -222,18 +222,13 @@ lets us break out of the search early by returning \code{None} \coderef{HC10}. I
 with both the right hash and the right key, we return \code{Some(true)} from the
 closure \coderef{HC11}, and \code{seek_with_opt} returns \code{Ok}. If we get back \code{Ok}, the
 search succeeded, so we return \code{true}, and \code{false} otherwise.
-
-
-\begin{figure}[ht]
 \input{listings/hashmap-contains}
-\end{figure}
 
 
-\fixme{07/05 22:25 remove this}
-\filbreak%
 \subsection{Insert}
 \code{HashMap::insert} is more complicated, as there are multiple things that can go wrong, and
-that some operations require cleanup.
+that some operations require cleanup. \cref{lst:hashmap-insert} shows the implementation of
+\code{insert}.
 
 \input{listings/hashmap-insert}
 

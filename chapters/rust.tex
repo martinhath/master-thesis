@@ -6,8 +6,21 @@
 
 
 
-\section{The Borrow Checker}
-\blindtext{}
+\section{The Borrow Checker\label{sec:borrow-checker}}
+
+A central concept in Rust is that of ownership. At any moment, an object has exactly one binding
+which \emph{owns} the object. Ownership may be transfered (``\emph{moved}'', which is the default
+behaviour), or it may be borrowed, of which there are two types: immutable borrows and mutable
+borrows. The borrowed binding is in effect a \emph{reference} to the data, similiar to references
+in other programming languages. The three types of ownership handling is shown in
+\cref{fig:rust-ownership}.
+
+\input{listings/intro-rust}
+
+One of the reasons to differentiate between mutable and immutable borrows, is references in Rust
+can be either aliased, or mutable. That is, if there is a mutable reference to some object, then
+that reference has to be the \emph{only} reference. This ensures that immutable references are
+never changed.
 
 
 
@@ -17,19 +30,68 @@
 
 
 \section{Unsafe Rust}
+
+When talking about the Rust progrmaming language, one usually talks about a subset of Rust, called
+\emph{Safe Rust}. In Safe Rust, there are no race conditions, mutable memory locations are never
+aliased, and all pointer accesses are valid.  The real world, on the other hand, offers seldom
+these guarantees, and the unfortunate truth which Rust programmers must deal with is that in order
+to implement some of these safe abstractions we want (like \code{Vec}, \code{Mutex}, and
+\code{Box}), some unsafety is required.  For this reason, Rust offers an escape hatch for some of
+its rules: \emph{Unsafe Rust}.
+
+The difference between Safe and Unsafe Rust is only four things. In Unsafe Rust one may:
+\begin{enumerate*}[1) ]
+    \item dereference raw pointers
+    \item mutate statics.
+    \item call \code{unsafe} functions
+    \item implement \code{unsafe} traits
+\end{enumerate*}
+
+Dereferencing raw pointers is naturally \code{unsafe}, as it is not possible to statically
+guarantee that the address of the pointer is valid memory, or that the objects it points to is
+still alive. Mutation of \code{static}  variables is also unsafe due to the lack of thread
+synchronization.
+
+\code{unsafe} functions and traits are just a marker added to the function or trait, signaling that
+not all uses of this is guaranteed to be safe. For instance, the trait \code{Send} is a marker
+trait, and types implementing \code{Send} may be sent across thread boundaries. While this is fine
+for most types, there are types which does not allow this. The reference counted pointer
+\code{Rc<T>} is an example, which is a pointer to a tuple \code{(count, data)}. The \code{count} is
+incremented each time \code{.clone()} is called, and decremented when a variable is \code{Drop}ped.
+To understand why this cannot be send across thread boundaries safely, consider what happens if
+$T\sb{1}$ \code{.clone()} at the same time as $T\sb{2}$ \code{Drop}s it: the \code{count} field is
+written to twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use
+atomics for performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race
+condition!
+
+One way of thinking about the unsafety of ones codebase is that there should be no undefined
+behaviour in safe code, no matter how the code looks like. In other words, it should be impossible
+to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe}.
+
+
+
+\section{Concurrency}
+
+One observation to make from the reference rules as presented in \cref{sec:borrow-checker} is that
+since references are either aliased or mutable, then there can be no writes shared data between
+threads, in Safe Rust, even using atomics. While this is \emph{technically} true, the Rust standard
+library uses \code{\&T} and \code{\&mut T} slightly different than ``immutable'' vs ``mutable'' in
+this context: \code{\&T} means that the type may be shared between threads.
+
+Take \code{AtomicUsize} as an example, a \code{usize} exposing atomic operations like \code{store},
+\code{load}, and \code{compare_and_swap}, which signatures are shown in \cref{lst:atomicusize}.
+\input{listings/atomic-usize}
+Clearly, \code{AtomicUsize::store} modifies memory of the \code{usize}; despite this the function
+is \code{\&self} and not \code{\&mut self}, since the operation is allowed on variables which are
+shared between threads.
+
+
+
+\section{Nightly Rust}
 \blindtext{}
 
 
-
-\section{Other Topics}
-\blindtext{}
-
-
-\subsection{Nightly Rust}
-\blindtext{}
-
-
-\subsubsection{Non-Lexical Lifetimes\label{sec:nll}}
+\subsection{Non-Lexical Lifetimes\label{sec:nll}}
 \blindtext{}
 
 
@@ -38,4 +100,8 @@
 
 
 \subsection{Specialization\label{sec:specialization}}
+\blindtext{}
+
+
+\subsection{Allocators\label{sec:allocators}}
 \blindtext{}

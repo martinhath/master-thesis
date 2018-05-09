@@ -206,9 +206,8 @@ The \mc{Guard} is implemented as a single word, in addition to an empty type (th
 constructed directly (\fixme{non movable types somewhere}), but rather declared with the
 \code{guard!} macro, which constructs it and calls \code{Guard::register}.
 An excerpt of the definitions of \mc{Guard} is shown in \cref{lst:guard-impl}.
-\begin{figure}[t]
-  \input{listings/guard}
-\end{figure}
+
+\input{listings/guard}
 
 \fixme{rewrite, focus on \code{register}}
 
@@ -238,18 +237,40 @@ We include the definition of the \code{struct}, as well as \code{cas}, the compa
 operation, in which we utilize some Traits from the Rust standard library to convert between types.
 \fixme{write a little here}
 
-\begin{figure}[ht]
-  \input{listings/atomic}
-\end{figure}
+\input{listings/atomic}
 
 
 \subsubsection{Common Operations}
 
-\fixme{Change the name}
-\fixme{write about \code{guard} and \code{cmr::alloc}}
-\begin{figure}[ht]
-  \input{listings/common-ops}
-\end{figure}
+In addition to the types member function, we have defined two important free functions:
+\code{guard} and \code{alloc}.
+\code{guard} takes a \code{\&mut Guard} and \code{\&Atomic}, \code{load}s the atomic, and protects
+the pointer read in the \code{Guard}, without a reclamation pass happening in between --- this is
+ensured by the \code{atomic} call.
+
+\begin{lstlisting}
+pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
+    atomic(|| { let p = unsafe { a.load(SeqCst) };
+                guard.inner = ptr::raw(p);
+                p }) }
+\end{lstlisting}
+\code{alloc} is similar to \code{Box::new}, as it just wraps \code{cmr::alloc::alloc} in addition
+to protecting the pointer returned in the \code{Guard} passed in.
+\begin{lstlisting}[numbers=left, numberstyle=\color{gray}\ttfamily{}A]
+pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
+    let ptr = alloc::alloc(t);
+    guard.inner = ptr::addr(ptr);
+    alloc::register(ptr);
+    ptr }
+\end{lstlisting}
+
+\fixme{08/05 15:42 Should talk somewhere about the registering process}
+Note that we do not need consider a reclamation pass happening concurrently in \code{alloc},
+despite there being a window in between the allocation and the pointers protection in the
+\code{Guard}. This is because CMR only frees \emph{registered} addresses. Since we protect the
+pointer in the \code{Guard} \coderef{A3} before registering it \coderef{A4}, the pointer will be
+protected when it is registered, and hence is subject for decallocation.
+
 
 
 \section{Complications}
@@ -284,59 +305,59 @@ latter, since the thread may depend on allocating before exiting.
 
 
 
-\clearpage
-\vspace{2cm}
-
-
-The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
-snapshot of the entire memory space of the process. Having this we can identify the roots, and run
-reachability analysis, knowing that nothing will change while we are looking.
-
-Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
-\emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
-garbage collection pass is detectable. Then the thread writes out the address of a thread local
-list of allocated addresses, such that the consolidator can collect all addresses that has been
-allocated since the last consolidation. At last, the threads wait for the consolidator to say that
-they may return to their execution. \fixme{why is this required?}
-
-\fixme{Add implementation details here}
-
-  \code{WAS\_SIGNALED} is a thread local flag that is
-  set to \code{true} in the signal handler. Note that this function does not support being called
-  recursively.
-\begin{figure}[ht]
-  \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A,caption=Pseudocode of $atomic$]
-fn atomic(f: F):
-  loop:
-    WAS_SIGNALED = false
-    let ret = f()
-    if not WAS_SIGNALED: return ret
-\end{lstlisting}
-\end{figure}
-
-\begin{theorem}
-  If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
-  \cref{eq:atomic}.
-\end{theorem}
-\begin{proof}
-  \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
-  \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
-  signals any thread, it means that there was a consolidator in this time interval. We are only
-  returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
-  successfully called without overlapping with a pass.
-\end{proof}
-Note that it is possible that the consolidator was initiated before entering the \code{atomic}
-function, but that they only got execution time after \code{A3}.
-\begin{lemma}
-  If the consolidator is lock-free, then \code{atomic} is lock-free.
-\end{lemma}
-\begin{proof}
-  If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
-  and is lock-free, it will either make progress, or some other thread is making progress. In
-  either case, the system makes progress.
-  \fixme{this is a terrible proof}
-\end{proof}
-
-It is important that the function given to \code{atomic} can be called multiple times without
-breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
-usually the case.
+% \clearpage
+%  \vspace{2cm}
+%
+%
+%  The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
+%  snapshot of the entire memory space of the process. Having this we can identify the roots, and run
+%  reachability analysis, knowing that nothing will change while we are looking.
+%
+%  Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
+%  \emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
+%  garbage collection pass is detectable. Then the thread writes out the address of a thread local
+%  list of allocated addresses, such that the consolidator can collect all addresses that has been
+%  allocated since the last consolidation. At last, the threads wait for the consolidator to say that
+%  they may return to their execution. \fixme{why is this required?}
+%
+%  \fixme{Add implementation details here}
+%
+%    \code{WAS\_SIGNALED} is a thread local flag that is
+%    set to \code{true} in the signal handler. Note that this function does not support being called
+%    recursively.
+%  \begin{figure}[ht]
+%    \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A,caption=Pseudocode of $atomic$]
+%  fn atomic(f: F):
+%    loop:
+%      WAS_SIGNALED = false
+%      let ret = f()
+%      if not WAS_SIGNALED: return ret
+%  \end{lstlisting}
+%  \end{figure}
+%
+%  \begin{theorem}
+%    If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
+%    \cref{eq:atomic}.
+%  \end{theorem}
+%  \begin{proof}
+%    \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
+%    \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
+%    signals any thread, it means that there was a consolidator in this time interval. We are only
+%    returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
+%    successfully called without overlapping with a pass.
+%  \end{proof}
+%  Note that it is possible that the consolidator was initiated before entering the \code{atomic}
+%  function, but that they only got execution time after \code{A3}.
+%  \begin{lemma}
+%    If the consolidator is lock-free, then \code{atomic} is lock-free.
+%  \end{lemma}
+%  \begin{proof}
+%    If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
+%    and is lock-free, it will either make progress, or some other thread is making progress. In
+%    either case, the system makes progress.
+%    \fixme{this is a terrible proof}
+%  \end{proof}
+%
+%  It is important that the function given to \code{atomic} can be called multiple times without
+%  breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
+%  usually the case.
