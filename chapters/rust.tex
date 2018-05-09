@@ -2,7 +2,7 @@
 
 
 \section{Introduction}
-\blindtext{}
+\lorem{}
 
 
 
@@ -25,7 +25,33 @@ never changed.
 
 
 \section{Lifetimes\label{sec:rust-lifetimes}}
-\blindtext{}
+
+Lifetimes is the second important concept in Rust. The idea of lifetimes i to have a way of talking
+about the scope of a variable --- its lifetime. By tracking the lifetime of all variables at
+compile time the Rust compiler is able to catch errors such as returning function local variable
+addresses. \cref{lst:lifetimes} shows an example function attempting to do this.
+\input{listings/lifetimes}
+Since Rust tracks the lifetime of all variables, it knows that the lifetime of \code{num} is the
+same as that of the function body. The lifetime of \code{r} is the same, as it is a reference to
+\code{num}. So when we try to return \code{r} in the last line of the function, Rust realizes that
+the lifetime of the reference we return ends its life at the end of the function; this is clearly
+not what we wanted, since it would make the returned reference dead on arrival. Compilation fails
+with the following error: \code{error[E0597]: `num` does not live long enough}.
+
+\code{struct}s can also be annotated with lifetimes, and in fact is required to be so if any of its
+members are references. This is because the lifetime of the struct is bounded by the lifetime of
+its member variables.
+\begin{lstlisting}
+struct<'a> {
+  age: i32,
+  name: &'a str }
+\end{lstlisting}
+
+Although Rust programmers may have to think about the lifetime of the variables, they seldom have
+to write lifetime annotated functions, due to \emph{lifetime elison} --- the compiler can ususally
+figure out the most general lifetime that fits the function. For instance, \code{foo(\&str) ->
+\&str} is considered by the compiler as \code{foo<'a>(\&'a str) -> \&'a str}.
+
 
 
 
@@ -56,13 +82,13 @@ synchronization.
 not all uses of this is guaranteed to be safe. For instance, the trait \code{Send} is a marker
 trait, and types implementing \code{Send} may be sent across thread boundaries. While this is fine
 for most types, there are types which does not allow this. The reference counted pointer
-\code{Rc<T>} is an example, which is a pointer to a tuple \code{(count, data)}. The \code{count} is
-incremented each time \code{.clone()} is called, and decremented when a variable is \code{Drop}ped.
-To understand why this cannot be send across thread boundaries safely, consider what happens if
-$T\sb{1}$ \code{.clone()} at the same time as $T\sb{2}$ \code{Drop}s it: the \code{count} field is
-written to twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use
-atomics for performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race
-condition!
+\code{Rc<T>} is an example, which is a pointer to a tuple\footnote{Not really, but for our purposes
+here we can pretend that it is.} \code{(count, data)}. The \code{count} is incremented each time
+\code{.clone()} is called, and decremented when a variable is \code{Drop}ped.  To understand why
+this cannot be send across thread boundaries safely, consider what happens if $T\sb{1}$
+\code{.clone()} at the same time as $T\sb{2}$ \code{Drop}s it: the \code{count} field is written to
+twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use atomics for
+performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race condition!
 
 One way of thinking about the unsafety of ones codebase is that there should be no undefined
 behaviour in safe code, no matter how the code looks like. In other words, it should be impossible
@@ -71,6 +97,10 @@ to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe
 
 
 \section{Concurrency}
+
+bing bong
+
+\subsection{Concurrency and Aliasing}
 
 One observation to make from the reference rules as presented in \cref{sec:borrow-checker} is that
 since references are either aliased or mutable, then there can be no writes shared data between
@@ -84,24 +114,90 @@ Take \code{AtomicUsize} as an example, a \code{usize} exposing atomic operations
 Clearly, \code{AtomicUsize::store} modifies memory of the \code{usize}; despite this the function
 is \code{\&self} and not \code{\&mut self}, since the operation is allowed on variables which are
 shared between threads.
+This is a useful distinction, since we can have methods on \code{AtomicUsize} that \emph{is}
+\code{\&mut self}, which then is only possible to invoke should the variable not have been shared
+between threads yet. For instance, \code{AtomicUsize::get_mut(\&mut self) -> \&mut usize} allows
+the underlying \code{usize} to be changed without any synchronization overhead.
+
+\fixme{09/05 11:48 notes on common patterns. MP, Rayon?}
+\subsection{The Standard Library}
+
+The standard librarys synchronization module \code{std::sync} contains primitives that most
+concurrent programs require, such as \code{Mutex}, \code{Channels}, \code{Condvar}, and
+\code{Atomic}s.
+
+\subsection{Common Patterns}
+
+It is common among Rust programmers to build abstractions over lower level primitives. For
+instance, a common pattern in parallel and concurrent programming is to have a \emph{thread pool},
+which is given work, and internally handles the thread synchronization and work division. Example
+usage of such an abstraction could be \code{let tp = ThreadPool::new(); tp.execute(|| { ... });}.
+
+Another example is data parallelism: given some collection of data we want to iterate over the
+elements and perform some operation on each element. The Rust library \code{rayon} offers exactly
+this: parallel iterator. Instead of writing \code{vec.iter()} to iterate over a \code{Vec}, with
+\code{rayon} we can write \code{vec.par_iter()}, and get data parallelism for free. Internally
+\code{rayon} uses a thread pool and work stealing to handle the division of labour among the
+threads.
 
 
+\fixme{09/05 12:32 Look at stuff from last semester. Move into std sec?}
+\subsection{Memory Orderings}
 
 \section{Nightly Rust}
-\blindtext{}
+
+The Rust language and compiler follows a fixed release schedule, where a new stable version is
+released every six weeks. In addition to this there is the beta branch, which is the upcomming
+version, and the nightly version which is the most recent version, build daily from the
+\code{master} branch of the source tree.
+
+The nightly version of the compiler allows users to opt in on \emph{untsable} features: features
+that are partially or fully implemented, but which details are not yet committed to. These featuers
+includes new APIs in the standard library, new syntax, and new language features all together.
+As we have used multiple unstable features in CMR, we look at some of them in deatil.
 
 
 \subsection{Non-Lexical Lifetimes\label{sec:nll}}
-\blindtext{}
+\lorem{}
 
 
 \subsection{Trait Objects\label{sec:trait-objects}}
-\blindtext{}
+
+When using traits in function signatures or structs we can either make the struct generic over some
+type that implements the trait, or we can use dynamic dispatch. As generics usually are implemented
+with copying the source for each invocation of a new type, it increases code size and compilation
+time. In addition, collections and similar structures cannot mix different types: a \code{Vec<Tr>}
+cannot both contain elements of type \code{A} and \code{B}, even if both implements \code{T}.
+
+Dynamic dispatch is the other option. Now variables are \emph{fat pointers}, containing both the
+pointer to the data type, and a pointer to a \code{vtable}\footnote{the name \code{vtable} comes
+from the C++ world, where function on abstract types are called \code{virtual} functions}, which
+contains information about the function addresses for that type. 
+
+\begin{figure}[ht]
+  \centering
+  \input{figures/dynamic-dispatch}
+\end{figure}
+
+
 
 
 \subsection{Specialization\label{sec:specialization}}
-\blindtext{}
+
+Specialization is a feature which allows multiple implementations of a trait for the same type,
+where the implementations are ordered by their specificity. Assume we have a trait \code{T} for a
+struct that is generic over a type \code{S<G>}. Then we can implement \code{impl T for S<G>},
+\emph{and} \code{impl T for S<G> where G: O}, where \code{O} is another trait. Now for all types
+\code{G}, if \code{G} implements \code{O}, we will use the latter implementation of \code{T}, but
+if it does not, we use the former. This require that we mark the functions implemented in the
+implementation without any bounds with \code{default}, as shown in \cref{lst:specialization}. Now
+\code{Ptr<String>} will use \code{foo} from \coderef{S5} as \code{String} implements
+\code{Debug}, while \code{Ptr<SomeStruct>} may use the \code{foo} from \coderef{S2}.
+
+\input{listings/specialization}
+
+
 
 
 \subsection{Allocators\label{sec:allocators}}
-\blindtext{}
+\lorem{}

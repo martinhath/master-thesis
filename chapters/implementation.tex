@@ -199,7 +199,7 @@ In this section we look at the concrete Rust implementation of selected data typ
 and argue for their correctness.
 
 
-\subsubsection{\mc{Guard}}
+\subsubsection{Guard}
 
 The \mc{Guard} is implemented as a single word, in addition to an empty type (the
 \code{PhantomData}) as Rust \emph{requires} generic types to be used. \mc{Guard}s aren't normally
@@ -229,7 +229,7 @@ In addition to the \code{guard!} macro for declaring new \mc{Guard}s, CMR also d
 \code{guard} \emph{procedure}, which loads an \mc{Atomic} into a \mc{Guard}.
 
 
-\subsubsection{\mc{Atomic}}
+\subsubsection{Atomic}
 
 \mc{Atomic} is mainly a wrapper around Rusts \code{AtomicPtr}, although the internals differ
 slightly. CMR defines its own type so that we can defide on the return types of certain functions.
@@ -238,6 +238,32 @@ operation, in which we utilize some Traits from the Rust standard library to con
 \fixme{write a little here}
 
 \input{listings/atomic}
+
+
+\subsubsection{NullablePtr}
+
+\code{NullablePtr} is used as the canonical pointer type in CMR, and all pointer like types are
+converted to \code{NullablePtr} using the \code{From} \code{Into} traits, which
+handles coversion between types. For instance, we implement \code{From<*const T> for
+NullablePtr<T>}. This way we can write functions that are generic over all types of pointers, so
+that the user of CMR does not have to handle these conversions themselves. This is used in the
+functions for pointer tagging, as well as the \code{cas} in \cref{lst:atomic} (the types \code{A}
+and \code{B}). \cref{lst:tagging} shows some of the free functions for pointer tags that are
+generic over different pointer types.
+
+\input{listings/tagging}
+
+\code{ones(k)} returns the bitmask with the \code{k} lower bits set, and \code{TAG_BITS} is a
+predefined number of bits allowed to use for tagging for any pointer. We convert from \code{P} to
+\code{NullablePtr} with \code{.into()} \coderef{TA2}.  In \code{with_tag} we need to use
+\code{TryFrom}, which is a conversion trait that may fail. In CMR \code{Ptr<T>} implements
+\code{TryFrom<NullablePtr>}, where the conversion fails if the \code{NullablePtr} is null. We
+assert that this failure should never happen \coderef{TA9} with the rationale that if we converted
+some type \code{P} into a \code{NullablePtr} and changed its tag, we should be able to convert back
+to \code{P}, even though the conversion is not always possible in general.
+
+
+
 
 
 \subsubsection{Common Operations}
@@ -274,7 +300,7 @@ protected when it is registered, and hence is subject for decallocation.
 
 
 \section{Complications}
-\blindtext%
+\lorem%
 
 \fixme{something something pitfalls}
 

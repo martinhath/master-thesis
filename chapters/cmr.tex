@@ -1,5 +1,7 @@
 \chapter{CMR\label{ch:cmr}}
 
+\fixme{09/05 13:22 remove impl stuff here. Should probably only talk about the system in an
+abstract sense.}
 We have named the system \emph{CMR}, short for \emph{Concurrent Memory Reclamation}. The system is
 implemented as a Rust library \code{cmr}. We have also implemented four data structures, a stack,
 queue, list, and hasmap, in the \code{cmr-data-structures} library, which uses \code{cmr}
@@ -14,8 +16,8 @@ proves their correctness.
 \section{Problem Definition}
 
 We define an abstract model of the system, and prove its correctness.
-The computational model we are working with is the RAM machine, and assume that
-the reader is familiar with it.
+The computational model we are working with is the RAM\fixme{09/05 13:23 no} machine, and assume
+that the reader is familiar with it.
 
 We start by defining some central concepts.
 Memory $M$ is the set of all addresses in the address space of the machine.

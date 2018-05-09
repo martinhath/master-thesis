@@ -1,0 +1,16 @@
+\begin{lstlisting}[
+  numbers=left, numberstyle=\color{gray}\ttfamily{}TA,
+  caption=Implementation of pointer tagging functions,
+  label=lst:tagging]
+pub fn tag<'a, P, T: 'a>(p: P) -> usize where P: Into<NullablePtr<'a, T>> {
+    let n: NullablePtr<T> = p.into();
+    n.0 & ones(TAG_BITS) }
+
+pub fn with_tag<'a, P, T: 'a>(p: P, tag: usize) -> P
+where P: Into<NullablePtr<'a, T>> + TryFrom<NullablePtr<'a, T>> {
+    let p = p.into();
+    let n = (p.0 & !(ones(TAG_BITS))) | tag;
+    P::try_from(NullablePtr::new(n)).unwrap_or_else(|_e| panic!("failed conversion")) }
+
+
+\end{lstlisting}

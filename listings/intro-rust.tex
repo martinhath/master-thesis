@@ -1,0 +1,26 @@
+\begin{figure}[ht]
+  \begin{subfigure}{0.3\textwidth}
+\caption{Ownership transfer}
+    \begin{lstlisting}
+fn bar(f: Foo);
+let x = foo();
+bar(x);\end{lstlisting}
+  \end{subfigure}%
+  \hfill
+  \begin{subfigure}{0.3\textwidth}
+\caption{Immutable Borrow}
+    \begin{lstlisting}
+fn bar(f: &Foo);
+let x = foo();
+bar(&x);\end{lstlisting}
+  \end{subfigure}%
+  \hfill
+  \begin{subfigure}{0.3\textwidth}
+\caption{Mutable Borrow}
+    \begin{lstlisting}
+fn bar(f: &mut Foo);
+let mut x = foo();
+bar(&mut x);\end{lstlisting}
+  \end{subfigure}%
+  \caption{The three types of ownership handling.\label{fig:rust-ownership}}
+\end{figure}

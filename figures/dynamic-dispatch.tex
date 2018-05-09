@@ -1,0 +1,8 @@
+\begin{tikzpicture}[node distance=1cm]
+\tikzset{lnode/.style={node distance=1.25cm, rectangle split, rectangle
+         split horizontal, rectangle split parts=2, draw,font=\footnotesize}}
+
+  \node [lnode]  (st1)                {bing \nodepart{second} bong};
+  \node [lnode]  (st2) [below of=st1] {bing \nodepart{second} bong};
+  \node [draw, inner sep=0mm, fit={(st1) (st2)}] {};
+\end{tikzpicture}
