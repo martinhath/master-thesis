@@ -158,7 +158,15 @@ As we have used multiple unstable features in CMR, we look at some of them in de
 
 
 \subsection{Non-Lexical Lifetimes\label{sec:nll}}
-\lorem{}
+The current implementation of lifetime checking in the compiler is \emph{lexical}, meaning
+variables are live until they go out of scope, despite not being used. This is a limitation that
+one may want to get rid off. The feature \gls{nll} lifts this requirement, and lets the lifetime of
+a variable last only until its last usage. Having this it is possible to seemingly break some of
+Rust rules, like aliased mutable references:
+\input{listings/nll-alias}
+This will compile, as we do not use \code{r1} after having made \code{r2}. If we write
+\code{r1.push(1);} after \code{let r2}, we get the same error as without using \gls{nll}.
+
 
 
 \subsection{Trait Objects\label{sec:trait-objects}}
@@ -170,15 +178,24 @@ time. In addition, collections and similar structures cannot mix different types
 cannot both contain elements of type \code{A} and \code{B}, even if both implements \code{T}.
 
 Dynamic dispatch is the other option. Now variables are \emph{fat pointers}, containing both the
-pointer to the data type, and a pointer to a \code{vtable}\footnote{the name \code{vtable} comes
-from the C++ world, where function on abstract types are called \code{virtual} functions}, which
-contains information about the function addresses for that type. 
+pointer to the data type, and a pointer to a \fixme{10/05 13:29 check
+this}\code{vtable}\footnote{the name \code{vtable} comes from the C++ world, where function on
+abstract types are called \code{virtual} functions}, which contains information about the function
+addresses for that type, as shown in \cref{fig:trait-objects}. The entry in the \code{vtable} is
+all functions for some trait. With this we can take any concrete type, and follow its vtable
+pointer, in order to find the implementation of some trait function for that type. In
+\cref{fig:trait-objects}, both \code{Foo} and \code{Bar} implements some trait which have a
+function named \code{fnc}. By following the pointers from the stack, we get the data (left) and the
+function pointer (right).
 
 \begin{figure}[ht]
   \centering
   \input{figures/dynamic-dispatch}
+  \caption{Illustration of memory when using Trait Objects.\label{fig:trait-objects}}
 \end{figure}
 
+While trait objects offers greater flexibility in the usage of traits, the pointer jumping may lead
+to worse cache behaviour, and important compiler optimizations like inlining is impossible.
 
 
 

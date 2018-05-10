@@ -1,8 +1,49 @@
 \begin{tikzpicture}[node distance=1cm]
-\tikzset{lnode/.style={node distance=1.25cm, rectangle split, rectangle
-         split horizontal, rectangle split parts=2, draw,font=\footnotesize}}
+\tikzset{split/.style={draw, rectangle split, rectangle split horizontal, rectangle split parts=2,
+  outer sep=0mm, node distance=6mm, minimum height=6mm, text width=6mm}}
+  \tikzset{full/.style={draw, outer sep=0mm, node distance=6mm, minimum height=6mm, text width=20mm}}
+  \tikzset{empty/.style={outer sep=0mm, minimum height=6mm, node distance=6mm}}
+  \tikzset{border/.style={draw, inner sep=0mm}};
 
-  \node [lnode]  (st1)                {bing \nodepart{second} bong};
-  \node [lnode]  (st2) [below of=st1] {bing \nodepart{second} bong};
-  \node [draw, inner sep=0mm, fit={(st1) (st2)}] {};
+  % stack block
+  \node [] (stack-label) {stack};
+  \node [empty] (e1)  [below of=stack-label] {...};
+  \node [split] (st1) [below of=e1]  {\null\nodepart{second}\null};
+  \node [empty] (e2)  [below of=st1] {...};
+  \node [split] (st2) [below of=e2]  {\null\nodepart{second}\null};
+  \node [empty] (e3)  [below of=st2] {...};
+  \node [border, fit={(e1) (st1) (e3)}] {};
+
+
+  % vtable block
+  \node [node distance=4cm] (vtable-label) [right of=stack-label] {vtables};
+  \node [split] (v1) [below of=vtable-label] {\code{fnc}\nodepart{second}\null};
+  \node [empty] (ve1) [below of=v1] {...};
+  \node [split] (v2) [below of=ve1]           {\code{fnc}\nodepart{second}\null};
+  \node [empty] (v-rest) [below of=v2] {...};
+  \node [border, fit={(v1) (v-rest)}] {};
+
+
+  % heap block
+  \node [node distance=4cm] (heap-label) [left of=stack-label] {memory};
+  \node [full] (h1) [below of=heap-label] {\footnotesize\code{Foo \{x: usize\}}};
+  \node [empty] (he1) [below of=h1] {...};
+  \node [full] (h2) [below of=he1]         {\footnotesize\code{Bar \{y: \&str\}}};
+  \node [empty] (h-rest) [below of=h2] {...};
+  \node [border, fit={(h1) (h-rest)}] {};
+
+
+  % Pointers to vtable
+  \draw [circlebase, -latex] ($(st1.center)!0.5!(st1.east)$) -| ($(st1.east)!0.33!(v1.west)$) |- (v1.west);
+  \draw [circlebase, -latex] ($(st2.center)!0.5!(st2.east)$) -| ($(st2.east)!0.66!(v2.west)$) |- (v2.west);
+
+  % vtable pointers
+  \draw [circlebase, -latex] ($(v1.center)!0.5!(v1.east)$) -- ($(v1.east) + (1, 0)$);
+  \draw [circlebase, -latex] ($(v2.center)!0.5!(v2.east)$) -- ($(v2.east) + (1, 0)$);
+
+  % Pointers to data
+  \draw [circlebase, -latex] ($(st1.center)!0.5!(st1.west)$) -| ($(st1.west)!0.33!(h1.east)$) |-
+  (h1.east);
+  \draw [circlebase, -latex] ($(st2.center)!0.5!(st2.west)$) -| ($(st2.west)!0.66!(h2.east)$) |-
+  (h2.east);
 \end{tikzpicture}
