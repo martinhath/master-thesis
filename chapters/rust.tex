@@ -17,6 +17,7 @@ in other programming languages. The three types of ownership handling is shown i
 
 \input{listings/intro-rust}
 
+\fixme{11/05 14:05 what happens after a value has been moved? Ex with \code{Vec}.}
 One of the reasons to differentiate between mutable and immutable borrows, is references in Rust
 can be either aliased, or mutable. That is, if there is a mutable reference to some object, then
 that reference has to be the \emph{only} reference. This ensures that immutable references are
@@ -52,6 +53,7 @@ to write lifetime annotated functions, due to \emph{lifetime elison} --- the com
 figure out the most general lifetime that fits the function. For instance, \code{foo(\&str) ->
 \&str} is considered by the compiler as \code{foo<'a>(\&'a str) -> \&'a str}.
 
+\fixme{11/05 14:04 example of the ptr struct here showing lifetime and why its useful for us?}
 
 
 

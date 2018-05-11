@@ -276,9 +276,9 @@ ensured by the \code{atomic} call.
 
 \begin{lstlisting}
 pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
-    atomic(|| { let p = unsafe { a.load(SeqCst) };
-                guard.inner = ptr::raw(p);
-                p }) }
+    without_reclamation(|| { let p = unsafe { a.load(SeqCst) };
+                             guard.inner = ptr::raw(p);
+                             p }) }
 \end{lstlisting}
 \code{alloc} is similar to \code{Box::new}, as it just wraps \code{cmr::alloc::alloc} in addition
 to protecting the pointer returned in the \code{Guard} passed in.
