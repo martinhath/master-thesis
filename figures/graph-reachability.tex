@@ -15,6 +15,6 @@
   \node [draw,circle,color=gray,label={[color=gray]x}] (x) [above of=b] {};
   \node [draw,circle,color=gray,label={[color=gray,label distance=-0.8cm]y}] (y) [right of=3] {};
   \draw[-latex,color=gray] (x.east) to [out=0,in=90] (y.north);
-  \node [draw,circle,color=gray,label={[color=gray]z}] (z) [below of=3] {};
+  \node [draw,circle,color=gray,label={[right,xshift=1mm,color=gray]z}] (z) [below of=3] {};
   \draw[-latex,color=gray] (z) -- (b);
 \end{tikzpicture}

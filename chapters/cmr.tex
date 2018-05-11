@@ -80,11 +80,12 @@ We will show that CMR guarantees that neither of the three hazards is possible i
 
 \section{Overview\label{sec:cmr-overview}}
 
-The high level idea of the system is for the consolidator to have easy access to all roots in every
-thread. With this information, the problem of identifying garbage is equivalent to reachability
-analysis in a graph in which the vertices are data types in the program and the edges are pointers.
- Having this, we can
-identify the reachable segments $R \subseteq M$ and the garbage $G = M \setminus R$.
+CMR is based on Forkscan\cite{alistarh2017forkscan}, but instead of scanning through the memory of
+each thread, we take a different approach: The high level idea of the system is for the reclaiming
+thread to have easy access to all roots in every thread. With this information, the problem of
+identifying garbage is equivalent to reachability analysis in a graph in which the vertices are
+data types in the program and the edges are pointers. Having this, we can identify the reachable
+segments $R \subseteq M$ and the garbage $G = M \setminus R$.
 
 \begin{figure}[ht]
   \centering
@@ -138,8 +139,7 @@ CMR():
     fork()
     unfreeze()
     for addr in unreachables():
-        free(addr)
-    \end{lstlisting}
+        free(addr)\end{lstlisting}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.45\textwidth}
@@ -147,8 +147,7 @@ CMR():
 on_freeze():
     write_roots()
     register_done()
-    wait_for_unfreeze()
-    \end{lstlisting}
+    wait_for_unfreeze()\end{lstlisting}
   \end{subfigure}
   \caption{Pseudocode of CMR\@. The leftmost code is for the thread that runs the reclamation pass,
   and the rightmost code is other threads in the system.\label{lst:cmr}}
@@ -161,22 +160,23 @@ on_freeze():
 
 The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
 pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By having
-access to all \code{Guard}s, CMR have access to all roots. \code{Guard}s are similar to hazard
-pointers (\cref{sec:hazard-pointers}), except that no thread synchronization is performed
-when making new or updating existing \code{Guard}s, which reduces the overhead significantly.
+access to all \code{Guard}s, CMR have access to all roots in the program at any instant.
+\code{Guard}s are similar to \gls{hps} (\cref{sec:hazard-pointers}), except that no thread
+synchronization is performed when making new or updating existing \code{Guard}s, which reduces the
+overhead of CMR significantly compared to \gls{hps}.
 
 CMR has four types that are essential to understanding how we manage safe access to shared memory:
 \emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
-type of the data they protect; this is omitted for brevity. We look at each type in turn.
+type of the data they protect, which is omitted for brevity.
 
 
 \begin{definition}[Guard\label{def:guard}]
-  A \emph{Guard} is an object that contains a \emph{root}. The Guard is non-movable in memory.
-  All roots are stored in Guards.
+  A \emph{Guard} is an object that contains a \emph{root} or $\bot$. The Guard is non-movable in
+  memory. All roots are stored in Guards.
 \end{definition}
 
 \begin{definition}[Atomic]
-  An \emph{Atomic} is a pointer variable that provides safe concurrent access.
+  An \emph{Atomic} is a pointer type that provides safe concurrent access to its users.
 \end{definition}
 
 \begin{definition}[NullablePtr]
@@ -193,10 +193,10 @@ type of the data they protect; this is omitted for brevity. We look at each type
 \end{definition}
 
 These four types are the building blocks of writing concurrent structures in CMR\@. All pointers
-are stored in an Atomic, and loading an atomic yields a NullablePtr, which may be promoted to a
-Ptr, if it is not null. The Ptr provides access to the data the pointer points to.
-In addition to having the types, CMR defines a number of operations that acts on these types.
-We look at each type in turn, and define their operations.
+are stored in an \mc{Atomic}, and loading an atomic using a \mc{Guard} yields a \mc{NullablePtr},
+which may be promoted to a \mc{Ptr}, if it is not null. The \mc{Ptr} provides access to the data
+the pointer points to.  In addition to having the types, CMR defines a number of operations that
+acts on these types.  We look at each type in turn, and define their operations.
 
 \subsection{Guard}
 A Guard can be constructed with the initial value of $\bot$ with \emph{make-guard}
@@ -207,6 +207,9 @@ It can also copy the value of another Guard with \emph{copy-guard}.
 \begin{equation}\label{eq:copy-guard}
   \text{copy-guard\:::\:} (Guard, Guard) \to ()
 \end{equation}
+
+General usage of \mc{Guard} is to construct the number of \mc{Guard}s one needs for some operation.
+These \mc{Guard}s are then used to load \mc{Atomic}s into.
 
 
 \subsection{Atomic}
@@ -264,10 +267,15 @@ that take a NullablePtr can also take a Ptr.
 We also need a few other operations to make sure that the implementation of funcions are valid.
 For instance, in load-atomic there is a window in between reading the atomic and storing the
 pointer read it in the guard in which a reclamation pass may have happened. The higher order
-function \emph{atomic} makes sure that this is safe, by running the given function without a
-reclamation pass happening in between:
-\begin{equation}\label{eq:atomic}
-  \text{atomic\:::\:} (() \to T) \to T
+function \emph{without_reclamation} makes sure that this is safe, by running the given function
+without a reclamation pass happening in between:
+\begin{equation}\label{eq:without_reclamation}
+  \text{without_reclamation\:::\:} (() \to T) \to T
+\end{equation}
+
+As CMR controls memory allocations, it also defines its own allocation function:
+\begin{equation}\label{eq:alloc}
+  \text{alloc\:::\:} (Guard, T) \to Ptr
 \end{equation}
 
 
@@ -287,10 +295,10 @@ With these types and operations we are able to prove important properties of the
   of $p$, and $g$ is being changed. $g\sb{2}$ is valid by induction, so the pointer value in $a$ is
   reachable. This shows that the value read from the \mc{Atomic} is valid.
 
-  Using \mc{atomic} (\cref{eq:atomic}), we make sure that the read of $a$ and the store in
-  $g$ happens without a reclamation pass in between. Thus all valid pointers before the read is
-  still valid after the store. After the store operation in $g$ has completed, $g$ protects $v$.
-  Thus $v$ is valid.
+  Using \mc{without_reclamation} (\cref{eq:without_reclamation}), we make sure that the read of $a$
+  and the store in $g$ happens without a reclamation pass in between. Thus all valid pointers
+  before the read is still valid after the store. After the store operation in $g$ has completed,
+  $g$ protects $v$. Thus $v$ is valid.
 \end{proof}
 
 \begin{lemma}[\mc{Ptr} is valid]\label{lm:ptr-valid}
@@ -302,6 +310,6 @@ With these types and operations we are able to prove important properties of the
 \end{proof}
 
 \cref{lm:ptr-valid} is the most important result in this section, since it guarantees that
-accesses of the memory in a \mc{Ptr} is valid. Thus, a memory access through a \mc{Ptr} can result
-in a invalid-read (\cref{def:invalid-read}) or use-after-free (\cref{def:use-after-free})
+accesses of the memory in a \mc{Ptr} is valid. Thus, a memory access through a \mc{Ptr} can not
+result in a invalid-read (\cref{def:invalid-read}) or use-after-free (\cref{def:use-after-free})
 hazard.
