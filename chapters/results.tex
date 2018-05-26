@@ -7,5 +7,24 @@
 \section{Data Structures}
 \lorem{}
 
+\begin{figure}[ht]
+\centering
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{graphs/lurifax-hm-insert.pdf}
+    \caption{Performance of \code{HashMap::insert}}
+  \end{subfigure}
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{graphs/lurifax-hm-contains.pdf}
+    \caption{Performance of \code{HashMap::contains}}
+  \end{subfigure}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.49\linewidth]{graphs/lurifax-hm-80-10-10.pdf}
+\caption{\code{HashMap} performance with 80\% query, 10\% insert, and 10\% delete.}
+\end{figure}
+
+
 \section{Thirt Party Use}
 \lorem{}
