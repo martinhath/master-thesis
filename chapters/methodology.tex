@@ -8,12 +8,81 @@
 \lorem{}
 
 \subsection{Sanitizer}
-\lorem{}
+
+To automate validation of pointer reads we made a compile time feature\footnote{\emph{features} are
+similiar to \code{\#ifdef}s in C and C++} called \code{sanitize} that tracked all allocations,
+frees, and pointer reads.  Allocations and frees were tracked in two \code{HashMap}s,
+\code{ALLOCATIONS} and \code{FREES}.  On each new allocation, we insert it into the \code{HashMap}
+while asserting that it was not there previously. We also remove it from the frees map, in case it
+had previously been allocated and freed. Since we are using a custom pointer type, \code{Ptr},
+checking the validity on each pointer access is possible, as shown in \cref{lst:ptr-sanitize}.
+
+\begin{lstlisting}
+pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
+    let addr = B::into_raw(B::new(t)) as usize;
+    #[cfg(feature = "sanitize")]
+    {
+        let mut a = ALLOCATIONS.lock().unwrap();
+        assert!(a.insert(addr));
+        let mut f = FREES.lock().unwrap();
+        f.remove(&addr);
+    }
+    unsafe { Ptr::new(addr) }
+}
+\end{lstlisting}
+
+\begin{figure}[ht]
+\begin{lstlisting}[label=lst:ptr-sanitize,caption=Verifying all pointer accesses with
+\code{sanitize}]
+impl<'a, T> Deref for Ptr<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        #[cfg(feature = "sanitize")]
+        {
+            let a = ::alloc::ALLOCATIONS.lock().unwrap();
+            if !a.contains(&addr(self)) {
+                let was_freed = ::alloc::FREES.lock().unwrap().contains(&addr(self));
+                panic!("{:x} is not valid. Was is freed? {}", self.data, was_freed);
+            }
+        }
+        unsafe { &*(self.as_raw()) }
+    }
+}
+\end{lstlisting}
+\end{figure}
 
 \section{Benchmarking}
 \lorem{}
 
 \subsection{Trench}
-\lorem{}
 
-bing bong
+In order to more effectively benchmark threaded applications, an open source benchmarking library
+called \code{trench}\cite{trench} was developed. The library handles thread management and state
+for the runs of the benchmark. Trench supports both mutable thread local state and immutable shared
+state between all threads. For CMR this is useful since we can put the data strucutres we want to
+benchmark in the immutable shared state, as neither of the operations we want to test are
+\code{\&mut self} (see \cref{sec:concurrency-and-aliasing}). The user specifies the function to be
+benchmarked, the number of threads, and the states, and the duration of the benchmark, and
+\code{trench} handles the rest. The number of runs of the function specified during the given
+duration is measured.  \cref{lst:trench-ex} shows the benchmark for \code{HashMap::insert}.
+\code{RandomSource} allows us to pregenerate randoms numbers that we can insert into the hashmap,
+such that the random number generation itself is thread local, and is not included in the
+benchmarking loop.
+
+\begin{figure}[ht]
+\begin{lstlisting}[label=lst:trench-ex,caption=\code{Hashmap::insert} benchmark using \code{trench}]
+fn hashmap_insert(num_threads: usize) {
+    fn func(state: &HmState, local: &mut RandomSource<u64>) {
+        state.hashmap.insert(local.next(), 0);
+    }
+    let b = trench::TimedBench::<HmState, RandomSource<u64>>::with_threads(num_threads);
+    b.local_init(|l| {
+        cmr::thread_activate();
+        l.gen_n(10_000_000);
+    });
+    let res = b.run_for(duration(), func);
+    b.local_init(|l| cmr::thread_deactivate());
+    println!("cmr::HashMap\tinsert\t{} ops/sec", fmt_thousands_sep(res.ops_per_sec));
+}
+\end{lstlisting}
+\end{figure}

@@ -78,7 +78,7 @@ The difference between Safe and Unsafe Rust is only four things. In Unsafe Rust 
 Dereferencing raw pointers is naturally \code{unsafe}, as it is not possible to statically
 guarantee that the address of the pointer is valid memory, or that the objects it points to is
 still alive. Mutation of \code{static}  variables is also unsafe due to the lack of thread
-synchronization.
+synchronization, and that \code{\&T} references from above in the call stack may be mutated.
 
 \code{unsafe} functions and traits are just a marker added to the function or trait, signaling that
 not all uses of this is guaranteed to be safe. For instance, the trait \code{Send} is a marker
@@ -102,7 +102,7 @@ to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe
 
 bing bong
 
-\subsection{Concurrency and Aliasing}
+\subsection{Concurrency and Aliasing\label{sec:concurrency-and-aliasing}}
 
 One observation to make from the reference rules as presented in \cref{sec:borrow-checker} is that
 since references are either aliased or mutable, then there can be no writes shared data between
