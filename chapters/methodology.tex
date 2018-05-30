@@ -1,13 +1,29 @@
 \chapter{Methodology}
 \lorem{}
 
+
 \section{Development}
 \lorem{}
 
-\section{Testing}
-\lorem{}
 
-\subsection{Sanitizer}
+\section{Testing}
+
+Testing is an important part of sfotware development. While formal methods have not yet made its
+way into the software development insdustry, simpler and more heuristic methods, like unit testing
+and integration testing, are widespread. However, as Edsger Dijkstra famously said: ``Testing shows
+the presence, not the absence of bugs''\cite{buxton1970software}; while testing is useful to
+improve the quality of software, it is far from sufficient.
+
+In the world of concurrent programming this is even less so. Many bugs are manifested through
+unfortunate\footnote{Some would call interleavings that reveal bugs fortunate} thread execution
+interleavings done by the scheduler. We try to reveal these interleavings by repeatedly running
+tests until our confidence that no such interleavings exists is sufficiently high. In addition, we
+run tests with tools such as Valgrind\cite{valgrind} and our own sanitizer (\cref{sec:sanitizer}).
+Tests were also ran with and without compiler optimizations, as these optimizations often reveal
+yet more bugs.
+
+
+\subsection{Sanitizer\label{sec:sanitizer}}
 
 To automate validation of pointer reads we made a compile time feature\footnote{\emph{features} are
 similiar to \code{\#ifdef}s in C and C++} called \code{sanitize} that tracked all allocations,
@@ -52,7 +68,22 @@ impl<'a, T> Deref for Ptr<'a, T> {
 \end{figure}
 
 \section{Benchmarking}
-\lorem{}
+
+The benchmarks are ran with 5 second trials, where a function is ran repeatedly for the duration
+with any specified number of threads. The number of executions is counted for each thread and
+the total operations per second is reported. All threads run the same code, but they may have
+different thread local data. This is useful when benchmarking \code{HashMap::insert}, so that the
+threads can inserts values with different keys.
+
+There are a number of pitfalls when it comes to benchmarking code. We discuss a few of them;
+\cite{rare} is a good resource for experimental testing of data structures.
+
+Initialization of data structures should not be done on a single core as this creates
+a strong skew of data locality for that core, and other cores will have reduced performance due to
+the data locality. This is especially important on systems with multiple CPU sockets.
+
+
+
 
 \subsection{Trench}
 
@@ -65,7 +96,7 @@ benchmark in the immutable shared state, as neither of the operations we want to
 benchmarked, the number of threads, and the states, and the duration of the benchmark, and
 \code{trench} handles the rest. The number of runs of the function specified during the given
 duration is measured.  \cref{lst:trench-ex} shows the benchmark for \code{HashMap::insert}.
-\code{RandomSource} allows us to pregenerate randoms numbers that we can insert into the hashmap,
+\code{RandomSource} allows us to pregenerate random numbers that we can insert into the hashmap,
 such that the random number generation itself is thread local, and is not included in the
 benchmarking loop.
 
@@ -76,13 +107,18 @@ fn hashmap_insert(num_threads: usize) {
         state.hashmap.insert(local.next(), 0);
     }
     let b = trench::TimedBench::<HmState, RandomSource<u64>>::with_threads(num_threads);
-    b.local_init(|l| {
+    b.with_local_state(|l| {
         cmr::thread_activate();
         l.gen_n(10_000_000);
     });
     let res = b.run_for(duration(), func);
-    b.local_init(|l| cmr::thread_deactivate());
+    b.with_local_state(|_| cmr::thread_deactivate());
     println!("cmr::HashMap\tinsert\t{} ops/sec", fmt_thousands_sep(res.ops_per_sec));
 }
 \end{lstlisting}
 \end{figure}
+
+The \code{with_local_state} function runs the closure on each thread in parallel; this is used both
+for initializing the local state, and for thread local initialization and destruction.
+The global and local states, \code{HmState} and \code{RandomSource}, implements the trait
+\code{Default}, so that we do not have to initialize it ourselves.

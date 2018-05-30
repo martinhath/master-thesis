@@ -1,53 +1,76 @@
 \chapter{Results}
-\lorem{}
 
-\section{Operations of CMR}
-\lorem{}
+In this chapter we look at the expermental results of the system as a whole. In \cref{ch:res-ops}
+we look at the overhead of the operations done by CMR. In \cref{ch:res-ds} we look at the
+performance of the data structuers implemented, with and without the overehead CMR, and compare
+them to alternatives in the Rust ecosystem, like Crossbeam\cite{crossbeam} and data structures in
+the standard library wrapped in a \code{Mutex}.
 
-\section{Data Structures}
-\lorem{}
+\section{Operations of CMR\label{ch:res-ops}}
 
-\subsubsection{Lurifax}
+The operations that CMR provides that are most interesting to look at is allocation
+(\code{cmr::alloc}) and guard initialization and destruction (\code{guard!}), as these operations
+are the only ones that have any significant overhead. Atomic loads pointer manipulations are mainly
+tricks of the type system to ensure the safey of the operations, and has no run-time overhead.
 
-\begin{figure}[ht]
-\centering
-  \begin{subfigure}{0.49\linewidth}
-    \includegraphics[width=\linewidth]{graphs/lurifax-hm-insert.pdf}
-    \caption{Performance of \code{HashMap::insert}}
-  \end{subfigure}
-  \begin{subfigure}{0.49\linewidth}
-    \includegraphics[width=\linewidth]{graphs/lurifax-hm-contains.pdf}
-    \caption{Performance of \code{HashMap::contains}}
-  \end{subfigure}
-\end{figure}
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.49\linewidth]{graphs/lurifax-hm-80-10-10.pdf}
-\caption{\code{HashMap} performance with 80\% query, 10\% insert, and 10\% delete.}
-\end{figure}
+% TODO: actually do this (issue #1)
+It is also interesting to look at the overhead of \code{fork()} calls, as this is an important part
+of the way CMR works.
 
 
-\subsubsection{EECS}
+The results are primarily from a \fixme{30/05 13:57 insert IST machine here}. We have also ran the
+full benchmark suite on other machines\fixme{30/05 13:58 consider this after getting IST results}.
+Interesting results are shown. The complete dataset of all results on all machines are listed in
+\cref{ap:results}
 
-\begin{figure}[ht]
-\centering
-  \begin{subfigure}{0.49\linewidth}
-    \includegraphics[width=\linewidth]{graphs/eecs-ath-16-hm-insert.pdf}
-    \caption{Performance of \code{HashMap::insert}}
-  \end{subfigure}
-  \begin{subfigure}{0.49\linewidth}
-    \includegraphics[width=\linewidth]{graphs/eecs-ath-16-hm-contains.pdf}
-    \caption{Performance of \code{HashMap::contains}}
-  \end{subfigure}
-\end{figure}
+
+\section{Data Structures\label{ch:res-ds}}
+
+We look at all data structuers in the order that they were introduced in \cref{ch:usage}.
+
+\fixme{30/05 14:23 remove \\clearpages}
+
+\clearpage
+\subsection{Stack\label{sec:res-stack}}
 
 \begin{figure}[ht]
-\centering
-\includegraphics[width=0.49\linewidth]{graphs/eecs-ath-16-hm-80-10-10.pdf}
-\caption{\code{HashMap} performance with 80\% query, 10\% insert, and 10\% delete.}
+  \centering
+  \queuegrid{gribb}
+  \caption{Queue performance on \gribb}
 \end{figure}
 
+
+
+\clearpage
+\subsection{Queue\label{sec:res-queue}}
+
+\begin{figure}[ht]
+  \centering
+  \queuegrid{gribb}
+  \caption{Queue performance on \gribb}
+\end{figure}
+
+
+
+\clearpage
+\subsection{List\label{sec:res-list}}
+
+\begin{figure}[ht]
+  \centering
+  \queuegrid{gribb}
+  \caption{Queue performance on \gribb}
+\end{figure}
+
+
+
+\clearpage
+\subsection{HashMap\label{sec:res-hm}}
+
+\begin{figure}[ht]
+  \centering
+  \hmgrid{gribb}
+  \caption{HashMap performance on \gribb}
+\end{figure}
 
 \section{Thirt Party Use}
 \lorem{}

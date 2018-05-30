@@ -13,7 +13,7 @@
             citecolor=theme2]{hyperref}
 \usepackage{footnotebackref}
 \usepackage[capitalize, nameinlink]{cleveref}
-\Crefname{lstlisting}{Listing}{Listings}
+\crefname{lstlisting}{Listing}{Listings}
 \usepackage[colorinlistoftodos,
             textsize=footnotesize,
             linecolor=none,
@@ -145,7 +145,8 @@
 \input{chapters/conclusion}
 
 \begin{appendices}
-  \chapter{Her ja}
+\appendix
+  \chapter{Extended Results\label{ap:results}}
 \end{appendices}
 
 \printglossary[type=\acronymtype,title=Abbreviations]

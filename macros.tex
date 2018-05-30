@@ -8,9 +8,10 @@
 \newcommand{\cargo}{\code{cargo}}
 \newcommand{\rustup}{\code{rustup}}
 
-\newcommand{\lit}[1]{$\big<\textit{\sffamily #1}\big>$}
-
 \newcommand{\lorem}{{\color{black!60}\blindtext{}}}
+
+% name aliases
+\newcommand{\gribb}{Gribb}
 
 \tikzset{auto}
 \tikzset{lnode/.style={node distance=2.5cm, rectangle split, rectangle
@@ -99,5 +100,41 @@ corners=0.02cm, font=\footnotesize}}
  {\&}{{\Operator{\&}}}1
  {\ }{{\Operator{\ }}}1
  {\{}{{\Operator{\{}}}1
- {\}}{{\Operator{\}}}}1
+ {\}}{{\Operator{\}}}}1,
+}
+
+\newcommand{\hmgrid}[1]{%
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-hm-insert}
+    \caption{\code{HashMap::insert}}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-hm-remove}
+    \caption{\code{HashMap::remove}}
+  \end{subfigure}
+
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-hm-contains}
+    \caption{\code{HashMap::contains}}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-hm-80-10-10}
+    \caption{\code{HashMap} with 80\% contains, 10\% insert, 10\% remove}
+  \end{subfigure}
+}
+
+\newcommand{\queuegrid}[1]{%
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-queue-push}
+    \caption{\code{Queue::push}}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-queue-pop}
+    \caption{\code{Queue::pop}}
+  \end{subfigure}
+
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{graphs/#1-queue-50-50}
+    \caption{\code{Queue} with 50\% push, 50\% pop}
+  \end{subfigure}
 }
