@@ -1,67 +1,124 @@
 \chapter{Rust\label{ch:rust}}
 
 
-\section{Introduction}
-\lorem{}
+Rust is a new programming language focusing on safety, performance, and concurrency\cite{rust}.
+The official first stable release, Rust 1.0, was released in May 2015, and a new version of the
+language as well as the official compiler, \code{rustc}, is released every 6th week. The language
+is developed as an open source project on the version control platform GitHub\cite{github} by over
+2000 contributors as of May 2018\cite{rust-github}. The Rust project is organized into
+\emph{teams}, such as the Core Team, the Compiler Team, and the Documentation Team. Many of the
+members of the Rust teams are Mozilla employees, and Mozilla officially sponsors the Rust project.
+The language has no formal specification, although all language changes are developed and
+documented through an \gls{rfc} process. For a thorough introduction to Rust, see \cite{trpl}.
 
+
+\section{Introduction}
+
+Rust is a compiled language with a minimal runtime, similar to C and C++. \code{rustc} uses
+LLVM\cite{llvm} as a compiler backend for code optimization and code generation. The performance of
+Rust code is very similar to that of C and C++\cite{rust-perf}; variations are often due to the
+lack of stable features like SIMD support, or from different compile time information given to LLVM
+by either language.
+
+Rust has many features from the ML family of programming languages, such as pattern matching and
+tagged enums, and a rich type system with type inference. Most notably, and unlike most other
+modern programming languages, Rust does not have a garbage collector. Despite this, Rust programs
+does not handle memory management manually; memory management is typically done statically at
+compile time by utilizing language features covered in the upcomming sections.
+
+Rust uses \code{struct}s similar to C and C++ which can have \emph{methods}, but it does not have
+inheritance. \code{Trait}s are similar to interfaces: they define methods and optionally an
+implementation, and \code{struct}s \emph{implement} the \code{Trait}. Traits can even be
+implemented for types that we have not defined ourselves, as long as we have defined the
+\code{Trait}. This is useful, since it means we can extend types from the standard library, or from
+other third party crates\footnote{A \emph{crate} is a project unit, similar to a library}.
+Important \code{Trait}s include \code{Deref} (the \code{*} operator), \code{Clone} (values that are
+clonable), and \code{Drop} (ran when a value is destroyed).
+
+When an owned value leaves its scope, it is destroyed and its \code{Drop} method is ran. Primitive
+types, such as \code{char} or \code{u32} does not have a \code{Drop} implementation, but types
+which holds a resource, like allocated memory, often has. \code{String}  and \code{Vec<T>} are
+common examples. \code{String} has a pointer to an internal buffer, which needs to be freed upon
+destruction in order not to leak memory. This \code{free} call is done inside \code{String::Drop}.
 
 
 \section{The Borrow Checker\label{sec:borrow-checker}}
 
 A central concept in Rust is that of ownership. At any moment, an object has exactly one binding
 which \emph{owns} the object. Ownership may be transfered (``\emph{moved}'', which is the default
-behaviour), or it may be borrowed, of which there are two types: immutable borrows and mutable
-borrows. The borrowed binding is in effect a \emph{reference} to the data, similiar to references
-in other programming languages. The three types of ownership handling is shown in
-\cref{fig:rust-ownership}.
+behaviour), or it may be \emph{lended out}. Then the receiver is \emph{borrowing} the binding.
+There are two types or borrows: immutable and mutable borrows.
+One of the reasons to differentiate between mutable and immutable borrows, is references in Rust
+can be either aliased, or mutable, but never both.  That is, if there is a mutable reference to
+some object, then that reference has to be the \emph{only} reference. This ensures that immutable
+references are never changed, which makes it simpler for the programmer to reason about the code
+since we get referential transparency, in addition to that it enables more compiler optimizations.
+
+Borrowed objects are in effect \emph{references} to some data, similiar to pointers or references
+in other programming languages. While Rust does have raw pointers (see \cref{sec:unsafe-rust}), it
+is rarely used, and passing values by reference is prefered.  The three types of ownership handling
+is shown in \cref{fig:rust-ownership}. In \cref{fig:ownership-transfer} we move \code{x}, so
+\code{x} is no longer usable after the last line, and an attempt to use it is caught as a compile
+time error: \code{error[E0382]: use of moved value: `x`}. Since the caller of \code{foo} has
+``sent'' the \code{Foo} to the function, it does no longer have to do any cleanup: this is now
+\code{foo}s responsibility.
+
+\cref{fig:immutable-borrow} shows immutable borrow of \code{x}; the function \code{foo} may use the
+\code{Foo}, but it cannot mutate it. \cref{fig:mutable-borrow} shows a mutable borrow; now
+\code{foo} may mutate the \code{Foo}. Note that the binding \code{x} also needs to be mutable in
+order to borrow mutably.
 
 \input{listings/intro-rust}
 
-\fixme{11/05 14:05 what happens after a value has been moved? Ex with \code{Vec}.}
-One of the reasons to differentiate between mutable and immutable borrows, is references in Rust
-can be either aliased, or mutable. That is, if there is a mutable reference to some object, then
-that reference has to be the \emph{only} reference. This ensures that immutable references are
-never changed.
-
+Understanding the borrow checker is often a pain point for new programmers, and the period in which
+new Rust programmers learns an intuition about how to structure programs within these rules is
+often refered to as ``fighting with the borrow checker''.
 
 
 \section{Lifetimes\label{sec:rust-lifetimes}}
 
-Lifetimes is the second important concept in Rust. The idea of lifetimes i to have a way of talking
-about the scope of a variable --- its lifetime. By tracking the lifetime of all variables at
-compile time the Rust compiler is able to catch errors such as returning function local variable
-addresses. \cref{lst:lifetimes} shows an example function attempting to do this.
-\input{listings/lifetimes}
-Since Rust tracks the lifetime of all variables, it knows that the lifetime of \code{num} is the
-same as that of the function body. The lifetime of \code{r} is the same, as it is a reference to
-\code{num}. So when we try to return \code{r} in the last line of the function, Rust realizes that
-the lifetime of the reference we return ends its life at the end of the function; this is clearly
-not what we wanted, since it would make the returned reference dead on arrival. Compilation fails
-with the following error: \code{error[E0597]: `num` does not live long enough}.
+Lifetimes is the second important concept in Rust. The idea of lifetimes is to reason about the
+duration of the program execution in which some object is valid --- its lifetime. By tracking the
+lifetime of all variables at compile time the Rust compiler is able to catch errors such as
+returning function local variable addresses. \cref{lst:lifetimes} shows an example function
+attempting to do this.  \input{listings/lifetimes} Since Rust tracks the lifetime of all variables,
+it knows that the lifetime of \code{num} is the same as that of the function body. The lifetime of
+\code{r} is the same, as it is a reference to \code{num}. So when we try to return \code{r} in the
+last line of the function, Rust realizes that the lifetime of the reference we return ends its life
+at the end of the function; this is clearly not what we wanted, since it would make the returned
+reference dead on arrival. Compilation fails with the following error: \code{error[E0597]: `num`
+does not live long enough}.
 
+
+Although Rust programmers may have to think about the lifetime of the variables, they seldom have
+to write lifetime annotated functions, due to \emph{lifetime elison} --- the compiler can ususally
+figure out the most general lifetime that fits the function. Functions may be annotated with
+explicit lifetimes, for instance if it takes multiple references in which the relative difference
+of the lifetimes of the references is important.
 \code{struct}s can also be annotated with lifetimes, and in fact is required to be so if any of its
 members are references. This is because the lifetime of the struct is bounded by the lifetime of
 its member variables.
 \begin{lstlisting}
-struct<'a> {
+struct Person<'a> {
   age: i32,
   name: &'a str }
 \end{lstlisting}
+Should we have a function that crates a new \code{Person} we might want to annotate it explicitly,
+if the function takes multiple references, but only one of these references is the \code{name}
+field:
+\begin{lstlisting}
+fn make<'x, 'y>(f: &'y File, n: &'x str) -> Person<'x> { ... }
+\end{lstlisting}
+This way we can convey the information that the resulting \code{Peron} should live as long as
+\code{n}, but may outlive the file \code{f}.
 
-Although Rust programmers may have to think about the lifetime of the variables, they seldom have
-to write lifetime annotated functions, due to \emph{lifetime elison} --- the compiler can ususally
-figure out the most general lifetime that fits the function. For instance, \code{foo(\&str) ->
-\&str} is considered by the compiler as \code{foo<'a>(\&'a str) -> \&'a str}.
-
-\fixme{11/05 14:04 example of the ptr struct here showing lifetime and why its useful for us?}
 
 
-
-\section{Unsafe Rust}
+\section{Unsafe Rust\label{sec:unsafe-rust}}
 
 When talking about the Rust progrmaming language, one usually talks about a subset of Rust, called
 \emph{Safe Rust}. In Safe Rust, there are no race conditions, mutable memory locations are never
-aliased, and all pointer accesses are valid.  The real world, on the other hand, offers seldom
+aliased, and all pointer accesses are valid.  The real world, on the other hand, rarely offers
 these guarantees, and the unfortunate truth which Rust programmers must deal with is that in order
 to implement some of these safe abstractions we want (like \code{Vec}, \code{Mutex}, and
 \code{Box}), some unsafety is required.  For this reason, Rust offers an escape hatch for some of
@@ -70,19 +127,23 @@ its rules: \emph{Unsafe Rust}.
 The difference between Safe and Unsafe Rust is only four things. In Unsafe Rust one may:
 \begin{enumerate*}[1) ]
     \item dereference raw pointers
-    \item mutate statics.
+    \item mutate statics
     \item call \code{unsafe} functions
-    \item implement \code{unsafe} traits
+    \item implement \code{unsafe} traits.
 \end{enumerate*}
+One way of thinking about the unsafety of ones codebase is that there should be no undefined
+behaviour in safe code, no matter how the code looks like. In other words, it should be impossible
+to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe}.
 
 Dereferencing raw pointers is naturally \code{unsafe}, as it is not possible to statically
 guarantee that the address of the pointer is valid memory, or that the objects it points to is
-still alive. Mutation of \code{static}  variables is also unsafe due to the lack of thread
-synchronization, and that \code{\&T} references from above in the call stack may be mutated.
+still alive, nor that mutation of that memory does not change an immutable reference some other
+place in the program. Mutation of \code{static} variables is also unsafe due to mutability of
+aliased references, and due to the lack of thread synchronization.
 
 \code{unsafe} functions and traits are just a marker added to the function or trait, signaling that
-not all uses of this is guaranteed to be safe. For instance, the trait \code{Send} is a marker
-trait, and types implementing \code{Send} may be sent across thread boundaries. While this is fine
+not all uses of this is guaranteed to be safe. As an example, the trait \code{Send} is a marker
+trait and types implementing \code{Send} may be sent across thread boundaries. While this is fine
 for most types, there are types which does not allow this. The reference counted pointer
 \code{Rc<T>} is an example, which is a pointer to a tuple\footnote{Not really, but for our purposes
 here we can pretend that it is.} \code{(count, data)}. The \code{count} is incremented each time
@@ -91,10 +152,6 @@ this cannot be send across thread boundaries safely, consider what happens if $T
 \code{.clone()} at the same time as $T\sb{2}$ \code{Drop}s it: the \code{count} field is written to
 twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use atomics for
 performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race condition!
-
-One way of thinking about the unsafety of ones codebase is that there should be no undefined
-behaviour in safe code, no matter how the code looks like. In other words, it should be impossible
-to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe}.
 
 
 
@@ -118,29 +175,36 @@ is \code{\&self} and not \code{\&mut self}, since the operation is allowed on va
 shared between threads.
 This is a useful distinction, since we can have methods on \code{AtomicUsize} that \emph{is}
 \code{\&mut self}, which then is only possible to invoke should the variable not have been shared
-between threads yet. For instance, \code{AtomicUsize::get_mut(\&mut self) -> \&mut usize} allows
-the underlying \code{usize} to be changed without any synchronization overhead.
+between threads yet; we know this since this means that we have aliased mutable references, which
+is not allowed. For instance, \code{AtomicUsize::get_mut(\&mut self) -> \&mut usize} allows the
+underlying \code{usize} to be changed without any synchronization overhead.
 
-\fixme{09/05 11:48 notes on common patterns. MP, Rayon?}
-\subsection{The Standard Library}
+
+\subsection{Common Patterns}
 
 The standard librarys synchronization module \code{std::sync} contains primitives that most
 concurrent programs require, such as \code{Mutex}, \code{Channels}, \code{Condvar}, and
-\code{Atomic}s.
-
-\subsection{Common Patterns}
+\code{Atomic}s. A common pattern in Rust is the \gls{raii} pattern. The idea is that resources
+should be managed automatically when constructing and destructing an object. \code{Mutex} uses
+these ideas: \code{Mutex::lock} returns an \code{Result<MutexGuard>}, where the \code{MutexGuard}
+wrapps a mutable reference to the data that is protected by the \code{Mutex}. When the
+\code{MutexGuard} goes out of scope, its \code{Drop} implementation is ran, and the \code{Mutex} is
+unlocked.
 
 It is common among Rust programmers to build abstractions over lower level primitives. For
 instance, a common pattern in parallel and concurrent programming is to have a \emph{thread pool},
 which is given work, and internally handles the thread synchronization and work division. Example
 usage of such an abstraction could be \code{let tp = ThreadPool::new(); tp.execute(|| { ... });}.
+Since this can be implemented without any special compiler support, such crates are usually made as
+third party libraries.
 
 Another example is data parallelism: given some collection of data we want to iterate over the
 elements and perform some operation on each element. The Rust library \code{rayon} offers exactly
-this: parallel iterator. Instead of writing \code{vec.iter()} to iterate over a \code{Vec}, with
-\code{rayon} we can write \code{vec.par_iter()}, and get data parallelism for free. Internally
-\code{rayon} uses a thread pool and work stealing to handle the division of labour among the
-threads.
+this: parallel iterators. Instead of writing \code{vec.iter()} to iterate over a \code{Vec} and
+then performing some operation on each element sequentially, with \code{rayon} we can write
+\code{vec.par_iter()}, and get data parallelism for free. The operation is then ran in parallel
+with any number of threads. Internally \code{rayon} uses a thread pool and work stealing to handle
+the division of labour among the threads.
 
 
 \fixme{09/05 12:32 Look at stuff from last semester. Move into std sec?}
@@ -166,8 +230,12 @@ one may want to get rid off. The feature \gls{nll} lifts this requirement, and l
 a variable last only until its last usage. Having this it is possible to seemingly break some of
 Rust rules, like aliased mutable references:
 \input{listings/nll-alias}
-This will compile, as we do not use \code{r1} after having made \code{r2}. If we write
-\code{r1.push(1);} after \code{let r2}, we get the same error as without using \gls{nll}.
+This clearly violates one of the Rust rules, namely that we cannot have mutable aliased referenes.
+Yet, in this example we have two mutable references, \code{r1} and \code{r2}, to the same data.
+With \gls{nll} this will compile, as we do not use \code{r1} after having made \code{r2}, so its
+lifetime is implicitly ended right after its declaration. If we write \code{r1.push(1);} after
+\code{let r2}, we get the same error as without using \gls{nll}, since the lifetime \code{r1}
+overlaps with the lifetime of \code{r2}.
 
 
 
@@ -175,20 +243,22 @@ This will compile, as we do not use \code{r1} after having made \code{r2}. If we
 
 When using traits in function signatures or structs we can either make the struct generic over some
 type that implements the trait, or we can use dynamic dispatch. As generics usually are implemented
-with copying the source for each invocation of a new type, it increases code size and compilation
-time. In addition, collections and similar structures cannot mix different types: a \code{Vec<Tr>}
-cannot both contain elements of type \code{A} and \code{B}, even if both implements \code{T}.
+by copying the source code for the type for each invocation of a new type, it increases code size
+and compilation time. In addition, collections and similar structures cannot mix different types: a
+\code{Vec<SomeTrait>} cannot both contain elements of type \code{A} and \code{B}, even if both
+implements \code{SomeTrait}.
 
 Dynamic dispatch is the other option. Now variables are \emph{fat pointers}, containing both the
-pointer to the data type, and a pointer to a \fixme{10/05 13:29 check
-this}\code{vtable}\footnote{the name \code{vtable} comes from the C++ world, where function on
-abstract types are called \code{virtual} functions}, which contains information about the function
-addresses for that type, as shown in \cref{fig:trait-objects}. The entry in the \code{vtable} is
-all functions for some trait. With this we can take any concrete type, and follow its vtable
-pointer, in order to find the implementation of some trait function for that type. In
-\cref{fig:trait-objects}, both \code{Foo} and \code{Bar} implements some trait which have a
-function named \code{fnc}. By following the pointers from the stack, we get the data (left) and the
-function pointer (right).
+pointer to the data type, and a pointer to a \code{vtable}\footnote{the name \code{vtable} comes
+from the C++ world, where function on abstract types are called \code{virtual} functions}, which
+contains information about the function addresses for that type, as shown in
+\cref{fig:trait-objects}. The entry in the \code{vtable} is all functions for some trait. With this
+we can take any concrete type, and follow its vtable pointer, in order to find the implementation
+of some trait function for that type. In \cref{fig:trait-objects}, both \code{Foo} and \code{Bar}
+implements some trait which have a function named \code{fnc}. By following the pointers from the
+stack, we get the data (left) and the function pointer (right). This way of implementing Trait
+Objects are usually not mandated by any standard, but it is popular across different language
+implementations nevertheless.
 
 \begin{figure}[ht]
   \centering
@@ -196,27 +266,47 @@ function pointer (right).
   \caption{Illustration of memory when using Trait Objects.\label{fig:trait-objects}}
 \end{figure}
 
-While trait objects offers greater flexibility in the usage of traits, the pointer jumping may lead
-to worse cache behaviour, and important compiler optimizations like inlining is impossible.
+While trait objects offers greater flexibility in the usage of traits, the pointer jumping leads to
+worse cache behaviour which may have a large impact on performance, and important compiler
+optimizations like inlining is impossible.
 
 
 
 \subsection{Specialization\label{sec:specialization}}
 
 Specialization is a feature which allows multiple implementations of a trait for the same type,
-where the implementations are ordered by their specificity. Assume we have a trait \code{T} for a
-struct that is generic over a type \code{S<G>}. Then we can implement \code{impl T for S<G>},
-\emph{and} \code{impl T for S<G> where G: O}, where \code{O} is another trait. Now for all types
-\code{G}, if \code{G} implements \code{O}, we will use the latter implementation of \code{T}, but
-if it does not, we use the former. This require that we mark the functions implemented in the
-implementation without any bounds with \code{default}, as shown in \cref{lst:specialization}. Now
-\code{Ptr<String>} will use \code{foo} from \coderef{S5} as \code{String} implements
-\code{Debug}, while \code{Ptr<SomeStruct>} may use the \code{foo} from \coderef{S2}.
+where the implementations are ordered by their specificity.
 
+Assume we want to implement the trait \code{Debug} for a struct that is generic over some type
+\code{T}: \code{Struct<T>}. We might want to have different implementations of \code{Debug}
+depending on whether the generic parameter \code{T} implements \code{Debug} or not.
+Specialization makes this possible.
 \input{listings/specialization}
 
-
+With only these two implementation it is clear which of the two we want for any type: if \code<T>
+implements \code{Debug} we want the second, and if it does not, we want the first. However, if we
+mix in yet another trait, \code{Clone}, such that we have a third implementation
+\begin{lstlisting}
+impl<T: Clone> Trait for Struct<T> { ... }
+\end{lstlisting}
+it is no longer clear which implementation to use if \code{T} implements \emph{both} \code{Clone}
+and \code{Debug}. The current implementation forbids such implemementations.
 
 
 \subsection{Allocators\label{sec:allocators}}
-\lorem{}
+
+The final nightly feature that we look at is \emph{allocators}. It is not yet possible to change
+the default allocator in stable Rust, but a suggested API for creating new allocators and
+specifying the default system wide allocator for Rust programs is avaiable by opting in on the
+allocator feature. The feature defines a trait \code{GlobalAlloc} that defines functions analagous
+to \code{malloc} and \code{free} from libc, and a attribute \code{\#[global_allocator]} to select
+which allocator we want to use.
+
+The default allocator for Rust is jemalloc\cite{jemalloc}. By using other external crates we can
+use either the default system allocator, or jemalloc wrapped in our own allocator. This can be
+useful if we want to do bookkeeping, gather statistics, or do any thread synchronization outside of
+the actual allocator we are using.
+
+\begin{figure}[ht]
+\input{listings/alloc-api}
+\end{figure}

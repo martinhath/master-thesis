@@ -1,8 +1,8 @@
+\fixme{31/05 15:43 fix HI numbers here}
 \begin{lstlisting}[
 label=lst:hashmap-insert,
 caption=Implementation of \code{HashMap::insert}.,
 numbers=left, numberstyle=\color{gray}\ttfamily{}HI,
-escapeinside={@*}{*@},
 ]
 impl<K, V> HashMap<K, V> {
     pub fn insert(&self, k: K, v: V) {
@@ -17,19 +17,11 @@ impl<K, V> HashMap<K, V> {
                 &Entry::Value((h, ref key, _)) => h >= rev_hash,
                 &Entry::Sentinel(h) => h > rev_hash });
             if let Err(list::Error::Empty) = res {
-                unsafe { new_node.get_mut().next = cmr::Atomic::null(); }
-                let prev = entry.previous().ptr().unwrap();
-                let ret = prev.next.cas(ptr::null(), new_node, Ordering::SeqCst);
-                if let Err(_prev_next) = ret { continue 'restart; }
+                (*\lit{End of list case}*)
                 break 'restart; }
             if res.is_err() { continue 'restart; }
             if entry.insert_between(new_node).is_err() { continue 'restart; }
-            let mut entry = list::Entry::from_node_ptr(new_node, _r1, _r2);
-            if entry.step().is_err() { break; }
-            while let Some(curr) = entry.current().ptr() {
-                if curr.data().hash() > rev_hash { break; }
-                if curr.data().key() == new_node.data().key() {
-                    if entry.delete().is_err() { break; }; } }
+            (*\lit{Remove other nodes with the same key}*)
             break; }
         self.increment_length(); } }
 \end{lstlisting}

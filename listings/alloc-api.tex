@@ -1,0 +1,19 @@
+\begin{lstlisting}[caption=Custom allocators wrapping jemalloc and the system allocator]
+pub struct WrapJemalloc;
+unsafe impl GlobalAlloc for WrapJemalloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {
+        (*\lit{Do something before calling alloc}*)
+        Jemalloc.alloc(layout) }
+    unsafe fn dealloc(&self, ptr: *mut Opaque, layout: Layout) {
+        (*\lit{Do something before calling free}*)
+        Jemalloc.dealloc(ptr, layouer); } }
+
+pub struct WrapSystem;
+unsafe impl GlobalAlloc for WrapSystem {
+    unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {
+        (*\lit{Do something before calling alloc}*)
+        System.alloc(layout) }
+    unsafe fn dealloc(&self, ptr: *mut Opaque, layout: Layout) {
+        (*\lit{Do something before calling free}*)
+        System.dealloc(ptr, layout); } }
+\end{lstlisting}

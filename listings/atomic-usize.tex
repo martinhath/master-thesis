@@ -1,7 +1,7 @@
 \begin{lstlisting}[label=lst:atomicusize,caption=Signatures for selected operations on
 \code{AtomicUsize}]
-pub fn load(&self, order: Ordering) -> usize;
-pub fn store(&self, val: usize, order: Ordering);
-pub fn swap(&self, val: usize, order: Ordering) -> usize;
-pub fn compare_and_swap(&self, current: usize, new: usize, order: Ordering) -> usize;
+fn load(&self, order: Ordering) -> usize;
+fn store(&self, val: usize, order: Ordering);
+fn swap(&self, val: usize, order: Ordering) -> usize;
+fn compare_and_swap(&self, current: usize, new: usize, order: Ordering) -> usize;
 \end{lstlisting}

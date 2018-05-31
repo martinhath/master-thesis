@@ -2,10 +2,10 @@
   label=lst:specialization,
   caption=Using specialization to implement a trait twice.,
   numbers=left, numberstyle=\color{gray}\ttfamily{}S]
-impl<T> SomeTrait<T> for YourStruct<T> {
-  default fn foo(&self);
+impl<T> Trait for Struct<T> {
+  default fn fmt(&self);
 }
-impl<T: Debug> SomeTrait<T> for YourStruct<T> {
-  fn foo(&self);
+impl<T: Debug> Trait for Struct<T> {
+  fn fmt(&self);
 }
 \end{lstlisting}

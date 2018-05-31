@@ -3,16 +3,20 @@
 
 \section{Garbage Collectors}
 
+\fixme{31/05 10:58 What types of GC are there?}
 A \emph{Garbage Collector} usually refers to an automatic subsystem that handles memory management
 without requiring programmer assistence. Many widespread language implementations,
 including Java, Python, and Go, use a garbage collector, although the internal details of each
 system varies greatly.
 
+\fixme{31/05 10:58 More here}
 The job of the garbage collector is to identify memory segments that are no longer used by the
 program. One way of doing this is to represent the program memory as a graph $G=(V, E)$ where $V$ is
 all allocated memory segments and $(u, v) \in E$ if the region $u$ contains an address that is
 inside the segment $v$. One consequence of this model is that memory addresses cannot be computed
 from other values.
+
+\fixme{31/05 10:58 Discussion about GC in general?}
 
 
 \section{Operating Systems}
@@ -22,6 +26,10 @@ from other values.
 \lorem{}
 
 \subsubsection{Memory Maps\label{sec:memory-map}}
+\lorem{}
+
+
+\subsection{Signals}
 \lorem{}
 
 

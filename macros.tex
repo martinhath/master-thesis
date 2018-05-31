@@ -3,12 +3,14 @@
 \newcommand{\code}[1]{{\color{darkred}\ttfamily #1}}
 \newcommand{\mc}[1]{{\ttfamily #1}}
 \newcommand{\coderef}[1]{(\texttt{\color{operator}#1})}
+\newcommand{\lit}[1]{$\big<\textit{\sffamily #1}\big>$}
 
 \newcommand{\rustc}{\code{rustc}}
 \newcommand{\cargo}{\code{cargo}}
 \newcommand{\rustup}{\code{rustup}}
 
 \newcommand{\lorem}{{\color{black!60}\blindtext{}}}
+
 
 % name aliases
 \newcommand{\gribb}{Gribb}
@@ -59,6 +61,8 @@ corners=0.02cm, font=\footnotesize}}
 \newacronym{pthreads}{{\code{pthreads}}}{POSIX threads}
 \newacronym{nll}{NLL}{Non-Lexical Lifetimes}
 \newacronym{hps}{HPs}{Hazard Pointers}
+\newacronym{rfc}{RFC}{Request For Comments}
+\newacronym{raii}{RAII}{Resource Allocation Is Initialization}
 
 
 \newcommand{\Operator}[1]{{\color{operator}#1}}
@@ -72,12 +76,13 @@ corners=0.02cm, font=\footnotesize}}
  keywords={let,mut,fn,return,pub,struct,where,impl,as,match,not,if,else,loop,while,unsafe,
            default,ref,break,continue},
 % morekeywords={*,
+ escapeinside={(*}{*)},
  numbers=none,
  numbersep=5pt,
  numberstyle=\color{gray}\ttfamily,
  showspaces=false,
  showstringspaces=false,
- frame=single,
+ % frame=single,
  rulecolor=\color{lightgray},
  literate=
  {(}{{\Operator{(}}}1
@@ -101,6 +106,7 @@ corners=0.02cm, font=\footnotesize}}
  {\ }{{\Operator{\ }}}1
  {\{}{{\Operator{\{}}}1
  {\}}{{\Operator{\}}}}1,
+ stringstyle=\color{green},
 }
 
 \newcommand{\hmgrid}[1]{%
