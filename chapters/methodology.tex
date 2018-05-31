@@ -36,16 +36,12 @@ checking the validity on each pointer access is possible, as shown in \cref{lst:
 \begin{lstlisting}
 pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
     let addr = B::into_raw(B::new(t)) as usize;
-    #[cfg(feature = "sanitize")]
-    {
+    #[cfg(feature = "sanitize")] {
         let mut a = ALLOCATIONS.lock().unwrap();
         assert!(a.insert(addr));
         let mut f = FREES.lock().unwrap();
-        f.remove(&addr);
-    }
-    unsafe { Ptr::new(addr) }
-}
-\end{lstlisting}
+        f.remove(&addr); }
+    unsafe { Ptr::new(addr) } } \end{lstlisting}
 
 \begin{figure}[ht]
 \begin{lstlisting}[label=lst:ptr-sanitize,caption=Verifying all pointer accesses with
@@ -53,18 +49,12 @@ pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
 impl<'a, T> Deref for Ptr<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        #[cfg(feature = "sanitize")]
-        {
+        #[cfg(feature = "sanitize")] {
             let a = ::alloc::ALLOCATIONS.lock().unwrap();
             if !a.contains(&addr(self)) {
                 let was_freed = ::alloc::FREES.lock().unwrap().contains(&addr(self));
-                panic!("{:x} is not valid. Was is freed? {}", self.data, was_freed);
-            }
-        }
-        unsafe { &*(self.as_raw()) }
-    }
-}
-\end{lstlisting}
+                panic!("{:x} is not valid. Was is freed? {}", self.data, was_freed); } }
+        unsafe { &*(self.as_raw()) } } }\end{lstlisting}
 \end{figure}
 
 \section{Benchmarking}
@@ -104,17 +94,13 @@ benchmarking loop.
 \begin{lstlisting}[label=lst:trench-ex,caption=\code{Hashmap::insert} benchmark using \code{trench}]
 fn hashmap_insert(num_threads: usize) {
     fn func(state: &HmState, local: &mut RandomSource<u64>) {
-        state.hashmap.insert(local.next(), 0);
-    }
+        state.hashmap.insert(local.next(), 0); }
     let b = trench::TimedBench::<HmState, RandomSource<u64>>::with_threads(num_threads);
-    b.with_local_state(|l| {
-        cmr::thread_activate();
-        l.gen_n(10_000_000);
-    });
+    b.with_local_state(|l| { cmr::thread_activate();
+                             l.gen_n(10_000_000); });
     let res = b.run_for(duration(), func);
     b.with_local_state(|_| cmr::thread_deactivate());
-    println!("cmr::HashMap\tinsert\t{} ops/sec", fmt_thousands_sep(res.ops_per_sec));
-}
+    println!("cmr::HashMap\tinsert\t{} ops/sec", fmt_thousands_sep(res.ops_per_sec)); }
 \end{lstlisting}
 \end{figure}
 

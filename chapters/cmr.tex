@@ -1,91 +1,28 @@
 \chapter{CMR\label{ch:cmr}}
 
-\fixme{09/05 13:22 remove impl stuff here. Should probably only talk about the system in an
-abstract sense.}
-We have named the system \emph{CMR}, short for \emph{Concurrent Memory Reclamation}. The system is
-implemented as a Rust library \code{cmr}. We have also implemented four data structures, a stack,
-queue, list, and hasmap, in the \code{cmr-data-structures} library, which uses \code{cmr}
-internally for memory reclamation.
-
-This chapter is organized as follows:
-\cref{sec:cmr-overview} gives an overview of the system as a whole, and defines the problem
-we want to solve.
-\cref{sec:cmr-primitives} defines the primitives of the system, how they interact, and
-proves their correctness.
-
-\section{Problem Definition}
-
-We define an abstract model of the system, and prove its correctness.
-The computational model we are working with is the RAM\fixme{09/05 13:23 no} machine, and assume
-that the reader is familiar with it.
-
-We start by defining some central concepts.
-Memory $M$ is the set of all addresses in the address space of the machine.
-It is a disjoint set $M = A \cap F$ where $A$ is the set of allocated memory, and $F$ is the
-remaining of the memory space.
-A \emph{block} is a tuple $(addr, size)$ and represents the memory segment $\left[addr, addr +
-size\right)$.
-We call memory that is in an allocated block \emph{valid memory}.
-
-In Rust, most memory management is handled automatically by the compiler. CMR utilizes this by
-distinguishing between \emph{Rust memory} and \emph{Shared memory}. Rust memory is all memory that
-is managed by the compiler, for instance through smart pointers. Shared memory is the remaining
-memory, which is managed by CMR\@. Note that there is a thin line in between the two types: types may
-be handled by CMR, but they themselves may contain smart pointers which is then handled by Rust.
-For instance, a node in a linked list implemented using CMR may contain data that contains a smart
-pointer. When the node is freed, its destructor is ran, and the smart pointers cleanup is handled
-just as if it was not in shared memory (see \cref{fig:rust-shared-mem}).
-
-Since Rust manages Rust memory, we only need to do reachability queries in the shared memory
-subset. For many applications, this is a much smaller space than the total memory. It is also
-possible to have the data types that are referenced from shared memory but stored in Rust memory
-(like the binary tree in \cref{fig:rust-shared-mem}) know whether they have pointers to
-shared memory, so that we don't have to scan through the strucutre, as it may be arbitrary large.
+In this chapter we present a concurrent memory reclamation scheme called \emph{CMR}.  We define the
+problem of memory management carefully in \cref{sec:cmr-problem-def}, in order to get a complete
+understanding of which problem we set out to solve.  In \cref{sec:cmr-overview} we present an
+abstract overview of CMR, in order to get a high level understanding of the system as a whole,
+without having to think about technical or implementation details.  \cref{sec:cmr-primitives}
+discusses the primitives and operations of CMR, and how they are used.  Finally in
+\cref{sec:cmr-correctness} we argue for the correctness of the system as presented in this chapter.
+By reasoning about CMR without an implementation we later aim to show that the implementation
+(\cref{ch:implementation}) fits the description of the system as we define it in this chapter.
 
 
-\begin{figure}
-  \centering
-  \input{figures/rust-shared-mem}
-  \caption{Example of memory layout showing Rust memory (beige) and shared memory (red). Types in
-  shared memory may contain pointers to Rust memory, and vice versa.\label{fig:rust-shared-mem}}
-\end{figure}
 
-\subsection{Memory Hazards}
+\section{Problem Definition\label{sec:cmr-problem-def}}
 
-There are a number of possible hazards when managing memory manually. We first define three
-hazards:
-
-\begin{definition}[invalid-read\label{def:invalid-read}]
-  Memory that has never been allocated is read.
-\end{definition}
-
-\begin{definition}[use-after-free\label{def:use-after-free}]
-  Memory that was allocated and then freed is read.
-\end{definition}
-
-\begin{definition}[double-free\label{def:double-free}]
-  A block is freed twice without being allocated in between.
-\end{definition}
-
-invalid-read is the least frequent of the three, as it requires the programmer to conjure a pointer
-out of thin air, since it has never been allocated in the system.\ use-after-free is the most
-hazarous of the three, as program behaviour is often undefined when freed values are read
-\fixme{05/05 16:09 ref UB}; in many language implementations undefined behavious means that the
-entire program is illegal, and one cannot assume anything about its behaviour.\ double-free is
-technically not a memory hazard, as the operating system can check for the validity of pointers
-that are freed. This is often not done in practice, and POSIXs definition of \code{free} states
-that it is undefined behaviour to pass a non-allocated pointer to \code{free}\cite{posix}.
-
-We will show that CMR guarantees that neither of the three hazards is possible in safe Rust.
-
-\section{Overview\label{sec:cmr-overview}}
-
-CMR is based on Forkscan\cite{alistarh2017forkscan}, but instead of scanning through the memory of
-each thread, we take a different approach: The high level idea of the system is for the reclaiming
-thread to have easy access to all roots in every thread. With this information, the problem of
-identifying garbage is equivalent to reachability analysis in a graph in which the vertices are
-data types in the program and the edges are pointers. Having this, we can identify the reachable
-segments $R \subseteq M$ and the garbage $G = M \setminus R$.
+We start by defining some central concepts. Memory $M$ is the set of all addresses in the address
+space of the machine. A \emph{block} is a tuple $(a, n)$ and represents the memory segment
+$\left[a, a + n\right)$. $M$ is a disjoint set $M = A \cap F$ where $A$ is the set of
+allocated blocks, and $F$ is the remaining of the memory space. $F$ needs not, and is almost never,
+a consecutive segments, but simply all memory that is outside any allocated block. We call such
+memory \emph{invalid}, and all memory in an allocated block \emph{valid}.  We model the program
+memory as a graph $G = (A, E)$ where $(u, v) \in E$ iff there is a pointer in $u$ pointing to an
+address in the segment $v$. That is, memory segments are the vertices, and pointers in the program
+are the edges. See \cref{fig:memory-graph} for a possible memory layout with a graph.
 
 \begin{figure}[ht]
   \centering
@@ -101,25 +38,101 @@ list = [a, b, 3]
     \input{figures/graph-reachability}
   \end{subfigure}
   \caption{Code sample (left) with possible heap layout (right). If the black filled node is the
-  only root, the black nodes are reachable, and the gray nodes are not. Note that one node (z)
-  points to a reachable node, but is itself not reachable.}
+  only root, the black nodes are reachable, and the gray nodes are not.\label{fig:memory-graph}}
 \end{figure}
 
-Performing the reachability analisys is not straight forwards, even when we have all roots in the
-system. Consider a mark-and-sweep approach, where we follow pointers and keep track of memory
-locations that we have seen before. Since we are running a concurrent system, pointers might be
-updated while we scan, so that two pointer values might be swapped after looking at either of them,
-making the other value invisible to the system, and causing memory to be registered as unreachable,
-when it is not. See \cref{fig:pointer-swap} for an example.
+As most programs need memory blocks of dynamic size, allocation and deallocation,
+\emph{``freeing''}, is commonplace. The problem of memory management is to know when it is
+\emph{safe} to free a memory block. We want to avoid the following memory hazards:
+
+\begin{definition}[\egn{use-after-free\label{def:use-after-free}}]
+  Memory that was allocated and then freed is read.
+\end{definition}
+
+\begin{definition}[\egn{invalid-read\label{def:invalid-read}}]
+  Memory that has never been allocated is read.
+\end{definition}
+
+\begin{definition}[\egn{double-free\label{def:double-free}}]
+  A block is freed twice without being allocated in between.
+\end{definition}
+
+
+\egn{use-after-free} is the most hazarous of the three, as program behaviour is often undefined
+when freed values are read; in many language implementations undefined behavious means that the
+entire program is illegal, and one cannot assume anything about its behaviour (see
+\cref{sec:background-pl}). The consequence of \egn{use-after-free} usually ranges from reading
+values that are unchanged from the time the block was freed, to mutation of memory that has been
+reused.
+
+\egn{invalid-access} is the least frequent of the three, as it requires the programmer to conjure a
+pointer out of thin air, since it has never been allocated in the system. As with
+\egn{use-after-free}, this is too is usually undefined, with similar consequences. Despite their
+similarities we choose to have \egn{invalid-access} as a separate category, as pointer arithmetic
+may lead to these hazards.
+
+\egn{double-free} is technically not a memory hazard, as the operating system can check for the
+validity of pointers that are freed, although this is often not done in practice. It is not clear
+whether this is due to performance penalties of checking, or if it is primarily a legacy
+bevhaviour; POSIXs definition of \code{free} states that it is undefined behaviour to pass a
+non-allocated pointer to \code{free}\cite{posix}.
+
+We aim to show that CMR guarantees that neither of the three memory hazards are possible.
+
+
+\subsection{Shared Memory}
+
+Newer languages like modern C++ and Rust aim to avoid having the programmer manage memory manually,
+due to a long history of the consequences of memory hazards. For single threaded application, this
+may be considered a problem with suggested solutions. Rusts ownership model and lifetime tracking
+(\cref{ch:rust}), and similar methods from the C++ standard library, are proposed solutions.
+However, the ownership model does not handle shared memory functionally, as objects in shared
+memory might not have an owner responsible for its management. Despite not being a complete
+solution, having ``solved'' single threaded memory management turns out to be of great help.
 
 \begin{figure}[ht]
   \centering
+  \input{figures/rust-shared-mem}
+  \caption{Example of memory layout showing owned memory (beige) and shared memory (red). Types in
+  shared memory may contain pointers to owned memory, and vice versa.\label{fig:rust-shared-mem}}
+\end{figure}
+
+We divide up $A$ into two disjoint parts: \emph{owned} and \emph{shared} memory.  Owned memory is
+all memory which management is already handled by some system, like Rusts ownership model or the
+smart pointers of C++. Shared memory is the memory in which the structures that is not modeled well
+by other constructs live, like the nodes in a linked list.
+
+A key idea to recognize is that despite data being in Shared memory, they might themselves own data
+that is in Owned memory, like the binary tree in \cref{fig:rust-shared-mem}. The destruction of a
+list node containing the binary tree will utilize the system for owned memory, and make sure that
+the binary tree is cleaned up properly. It does not matter if the list node itself resided in owned
+or shared memory.  With this distiction we can reduce our problem space significantly, as we only
+have to worry about the small subset of $A$ that is shared memory.  Note that it is also possible
+to have the data types that are referenced from shared memory but stored in owned memory, like the
+pointer poining to \code{0xcafe} in \cref{fig:rust-shared-mem}.  This includes pointers on a stack
+frame, but might also include a entry in a hashmap. It is these pointers that CMR aims to control.
+
+
+\section{Overview\label{sec:cmr-overview}}
+
+CMR is based on the idea that if we have access to all roots in the system at an instant, finding
+the set of all reachable blocks $R$ from the set of roots $R\sb{0}$ is simple:
+$R$ is the transitive closure of ``there is a pointer from $x$ to $y$'' on $R\sb{0}$.
+We call identifying $R$ for \emph{reachability analysis}. By then tracking all allocated blocks
+$A$, we can identify the set of unreachable block $U$ by taking the relative complement of $R$ in
+$A$: $U = A \setminus R$.
+
+
+When performing the reachability analysis in a concurrent systems, simply following pointers while
+maintaining a frontier of unvisited blocks is not sufficient. Since there are multiple threads in
+the system, some other thread $T'$ may come along and change pointers, causing reachable blocks to
+be observed as unreachable by the reclaiming thread, as shown in \cref{fig:pointer-swap}.
+ 
+\begin{figure}[ht]
+  \centering
   \input{figures/pointer-swap}
-  \caption{Illustration of how mutation in the reachability graph can make a block $b$ appear as
-  non-reachable. After we have looked at the left child of a node, but before reading its right,
-  the nodes child pointers are swapped. Since we cannot detect that the pointers have been changed
-  (the two pointers could have been the same), we see $a$ twice and do not see $b$.%
-  \label{fig:pointer-swap}}
+  \caption{Mutation in the memory graph may lead to reachable blocks being observed as
+  unreachable.\label{fig:pointer-swap}}
 \end{figure}
 
 In order to handle mutation problems, we obtain a snapshot of the entire processes memory by
@@ -279,7 +292,7 @@ As CMR controls memory allocations, it also defines its own allocation function:
 \end{equation}
 
 
-\section{Correctness}
+\section{Correctness\label{sec:cmr-correctness}}
 
 With these types and operations we are able to prove important properties of the system.
 
