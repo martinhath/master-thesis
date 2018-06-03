@@ -33,7 +33,7 @@ while asserting that it was not there previously. We also remove it from the fre
 had previously been allocated and freed. Since we are using a custom pointer type, \code{Ptr},
 checking the validity on each pointer access is possible, as shown in \cref{lst:ptr-sanitize}.
 
-\begin{lstlisting}
+\begin{lstlisting}[style=Rust]
 pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
     let addr = B::into_raw(B::new(t)) as usize;
     #[cfg(feature = "sanitize")] {
@@ -44,7 +44,7 @@ pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
     unsafe { Ptr::new(addr) } } \end{lstlisting}
 
 \begin{figure}[ht]
-\begin{lstlisting}[label=lst:ptr-sanitize,caption=Verifying all pointer accesses with
+\begin{lstlisting}[style=Rust, label=lst:ptr-sanitize,caption=Verifying all pointer accesses with
 \code{sanitize}]
 impl<'a, T> Deref for Ptr<'a, T> {
     type Target = T;
@@ -91,7 +91,8 @@ such that the random number generation itself is thread local, and is not includ
 benchmarking loop.
 
 \begin{figure}[ht]
-\begin{lstlisting}[label=lst:trench-ex,caption=\code{Hashmap::insert} benchmark using \code{trench}]
+\begin{lstlisting}[style=Rust,
+label=lst:trench-ex,caption=\code{Hashmap::insert} benchmark using \code{trench}]
 fn hashmap_insert(num_threads: usize) {
     fn func(state: &HmState, local: &mut RandomSource<u64>) {
         state.hashmap.insert(local.next(), 0); }

@@ -98,7 +98,7 @@ of the lifetimes of the references is important.
 \code{struct}s can also be annotated with lifetimes, and in fact is required to be so if any of its
 members are references. This is because the lifetime of the struct is bounded by the lifetime of
 its member variables.
-\begin{lstlisting}
+\begin{lstlisting}[style=Rust]
 struct Person<'a> {
   age: i32,
   name: &'a str }
@@ -106,7 +106,7 @@ struct Person<'a> {
 Should we have a function that crates a new \code{Person} we might want to annotate it explicitly,
 if the function takes multiple references, but only one of these references is the \code{name}
 field:
-\begin{lstlisting}
+\begin{lstlisting}[style=Rust]
 fn make<'x, 'y>(f: &'y File, n: &'x str) -> Person<'x> { ... }
 \end{lstlisting}
 This way we can convey the information that the resulting \code{Peron} should live as long as
@@ -286,7 +286,7 @@ Specialization makes this possible.
 With only these two implementation it is clear which of the two we want for any type: if \code<T>
 implements \code{Debug} we want the second, and if it does not, we want the first. However, if we
 mix in yet another trait, \code{Clone}, such that we have a third implementation
-\begin{lstlisting}
+\begin{lstlisting}[style=Rust]
 impl<T: Clone> Trait for Struct<T> { ... }
 \end{lstlisting}
 it is no longer clear which implementation to use if \code{T} implements \emph{both} \code{Clone}

@@ -1,6 +1,9 @@
-\begin{lstlisting}[label=lst:msqueue,
-                   caption=The \code{push} operation on a Michael-Scott Queue.,
-                   numbers=left, numberstyle=\color{gray}\ttfamily{}MS,
+\begin{lstlisting}[
+  style=Rust,
+  label=lst:msqueue,
+  caption=The \code{push} operation on a Michael-Scott Queue.,
+  numbers=left,
+  numberstyle=\color{gray}\ttfamily{}MS,
                    ]
 impl<T> MsQueue<T> {
     pub fn push(&self, t: T) {

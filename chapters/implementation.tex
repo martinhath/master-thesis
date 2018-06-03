@@ -1,6 +1,41 @@
 \chapter{Implementation\label{ch:implementation}}
 
-In this chapter we look at the Rust implementation of CMR\@.  We look at four things: how thread
+In this chapter we look at the Rust implementation of CMR\@. The source code is openly available
+on GitHub under \todo{license}{\color{red}some license}\cite{cmr-github}.
+
+We start this chapter by implementing the primitive types and operations from
+\cref{sec:cmr-primitives}.
+
+
+\section{Primitives}
+
+\section{Data}
+
+\section{Snapshot}
+
+\section{Reachability}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\clearpage
+\clearpage
+\clearpage
+
+Recall the \proc{Reclaim} procedure from \cref{ch:cmr}. In \cref{sec:impl-snapshot} we look at how
+the snapshot mechanism is implemented. \cref{sec:impl-thread-data} discusses  
+
+We look at four things: how thread
 freezing is implemented (\cref{sec:signals}), how reachability analysis is done
 (\cref{sec:reachability}), thread and process intercommunication
 (\cref{sec:thread-communication}), and how the primitives and operations as defiend in
@@ -21,6 +56,7 @@ allocations, are read~\coderef{R7}.
 
 \begin{figure}[ht]
   \begin{lstlisting}[
+    style=Rust,
     numbers=left,
     numberstyle=\color{gray}\ttfamily{}R,
     caption=Pseudocode of the work of the reclaimer,
@@ -80,6 +116,7 @@ function, and threads are signaled with \code{pthread_sigqueue}.
 
 \begin{figure}[b]
   \begin{lstlisting}[
+    style=Rust,
     numbers=left,
     numberstyle=\color{gray}\ttfamily{}SH,
     caption=Pseudocode for the signal handler used by CMR,
@@ -135,30 +172,6 @@ and added to the frontier. When the frontier is empty, we have registered all re
 \cref{lst:find-reachable} shows the algorithm, which is effectively breadth-first search
 through the memory graph.
 
-\begin{figure}[ht]
-\begin{lstlisting}[
-  caption=The algorithm used to find all reachable memory blocks.,
-  label=lst:find-reachable,
-  frame=None,
-  basicstyle=\normalsize\mdseries,
-  columns=flexible,
-  xleftmargin=15pt,
-  numbers=left,
-  keywordstyle={\bf},
-  mathescape,
-  commentstyle={\color{gray}},
-  keywords={for,if,else,return,in,to,while,continue,break,output,not}]
-$\textsc{find-reachable(Roots)}$
-    Frontier = Roots
-    Seen = Roots
-    while mem = Pop(Frontier)
-        for ptr in Ptrs(mem)
-            if ptr not in Seen
-                Push(Frontier, ptr)
-            Insert(Seen, ptr)
-    return Seen
-\end{lstlisting}
-\end{figure}
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
 types can be arbitrarily large, in addition to that memory might not be initialized, and false
@@ -274,7 +287,7 @@ In addition to the types member function, we have defined two important free fun
 the pointer read in the \code{Guard}, without a reclamation pass happening in between --- this is
 ensured by the \code{atomic} call.
 
-\begin{lstlisting}
+\begin{lstlisting}[style=Rust]
 pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
     without_reclamation(|| { let p = unsafe { a.load(SeqCst) };
                              guard.inner = ptr::raw(p);
@@ -282,7 +295,7 @@ pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T
 \end{lstlisting}
 \code{alloc} is similar to \code{Box::new}, as it just wraps \code{cmr::alloc::alloc} in addition
 to protecting the pointer returned in the \code{Guard} passed in.
-\begin{lstlisting}[numbers=left, numberstyle=\color{gray}\ttfamily{}A]
+\begin{lstlisting}[style=Rust,numbers=left, numberstyle=\color{gray}\ttfamily{}A]
 pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
     let ptr = alloc::alloc(t);
     guard.inner = ptr::addr(ptr);
@@ -329,62 +342,3 @@ latter, since the thread may depend on allocating before exiting.
 \fixme{deactivate/reactivate around joins?}
 
 \fixme{add example or something here}
-
-
-
-% \clearpage
-%  \vspace{2cm}
-%
-%
-%  The key idea of the implementation is to use an operation known as \emph{forking} to obtain a
-%  snapshot of the entire memory space of the process. Having this we can identify the roots, and run
-%  reachability analysis, knowing that nothing will change while we are looking.
-%
-%  Consolidation starts by sending all running threads a \emph{signal}, causing them to jump to a
-%  \emph{signal handler}. The signal handler registers that the thread has been signaled, such that the
-%  garbage collection pass is detectable. Then the thread writes out the address of a thread local
-%  list of allocated addresses, such that the consolidator can collect all addresses that has been
-%  allocated since the last consolidation. At last, the threads wait for the consolidator to say that
-%  they may return to their execution. \fixme{why is this required?}
-%
-%  \fixme{Add implementation details here}
-%
-%    \code{WAS\_SIGNALED} is a thread local flag that is
-%    set to \code{true} in the signal handler. Note that this function does not support being called
-%    recursively.
-%  \begin{figure}[ht]
-%    \begin{lstlisting}[numbers=left,numberstyle=\color{gray}\ttfamily{}A,caption=Pseudocode of $atomic$]
-%  fn atomic(f: F):
-%    loop:
-%      WAS_SIGNALED = false
-%      let ret = f()
-%      if not WAS_SIGNALED: return ret
-%  \end{lstlisting}
-%  \end{figure}
-%
-%  \begin{theorem}
-%    If \code{f} does not itself call \code{atomic} then \code{atomic} satisfy
-%    \cref{eq:atomic}.
-%  \end{theorem}
-%  \begin{proof}
-%    \code{WAS\_SIGNALED} is set to \code{false} in \code{A3}, so if it is observed to be
-%    \code{true} in \code{A5} the signal handler must have been executed. Since only the consolidator
-%    signals any thread, it means that there was a consolidator in this time interval. We are only
-%    returning from the function if \code{WAS\_SIGNALED = false}, so if we return \code{f} was
-%    successfully called without overlapping with a pass.
-%  \end{proof}
-%  Note that it is possible that the consolidator was initiated before entering the \code{atomic}
-%  function, but that they only got execution time after \code{A3}.
-%  \begin{lemma}
-%    If the consolidator is lock-free, then \code{atomic} is lock-free.
-%  \end{lemma}
-%  \begin{proof}
-%    If we loop, there is a consolidator. Since the consolidate process has a finite number of steps
-%    and is lock-free, it will either make progress, or some other thread is making progress. In
-%    either case, the system makes progress.
-%    \fixme{this is a terrible proof}
-%  \end{proof}
-%
-%  It is important that the function given to \code{atomic} can be called multiple times without
-%  breaking. The most useful case for \code{atomic} is a \code{load/store} store pair, so this is
-%  usually the case.

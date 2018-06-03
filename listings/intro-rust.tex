@@ -1,7 +1,7 @@
 \begin{figure}[ht]
   \begin{subfigure}{0.3\textwidth}
     \caption{Ownership transfer\label{fig:ownership-transfer}}
-    \begin{lstlisting}
+    \begin{lstlisting}[style=Rust]
 fn foo(f: Foo);
 let x = ...
 foo(x);\end{lstlisting}
@@ -9,7 +9,7 @@ foo(x);\end{lstlisting}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \caption{Immutable Borrow\label{fig:immutable-borrow}}
-    \begin{lstlisting}
+    \begin{lstlisting}[style=Rust]
 fn foo(f: &Foo);
 let x = ...
 foo(&x);\end{lstlisting}
@@ -17,7 +17,7 @@ foo(&x);\end{lstlisting}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \caption{Mutable Borrow\label{fig:mutable-borrow}}
-    \begin{lstlisting}
+    \begin{lstlisting}[style=Rust]
 fn foo(f: &mut Foo);
 let mut x = ...
 foo(&mut x);\end{lstlisting}

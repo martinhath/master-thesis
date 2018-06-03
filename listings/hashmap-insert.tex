@@ -1,8 +1,9 @@
 \fixme{31/05 15:43 fix HI numbers here}
 \begin{lstlisting}[
-label=lst:hashmap-insert,
-caption=Implementation of \code{HashMap::insert}.,
-numbers=left, numberstyle=\color{gray}\ttfamily{}HI,
+  style=Rust,
+  label=lst:hashmap-insert,
+  caption=Implementation of \code{HashMap::insert}.,
+  numbers=left, numberstyle=\color{gray}\ttfamily{}HI,
 ]
 impl<K, V> HashMap<K, V> {
     pub fn insert(&self, k: K, v: V) {
@@ -17,11 +18,9 @@ impl<K, V> HashMap<K, V> {
                 &Entry::Value((h, ref key, _)) => h >= rev_hash,
                 &Entry::Sentinel(h) => h > rev_hash });
             if let Err(list::Error::Empty) = res {
-                (*\lit{End of list case}*)
-                break 'restart; }
+                (*\lit{End of list case}*) }
             if res.is_err() { continue 'restart; }
             if entry.insert_between(new_node).is_err() { continue 'restart; }
-            (*\lit{Remove other nodes with the same key}*)
-            break; }
+            (*\lit{Remove other nodes with the same key}*) }
         self.increment_length(); } }
 \end{lstlisting}

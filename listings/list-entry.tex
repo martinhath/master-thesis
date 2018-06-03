@@ -1,4 +1,4 @@
-\begin{lstlisting}[caption=Partial \code{Entry} API from the List implementation.,
+\begin{lstlisting}[style=Rust,caption=Partial \code{Entry} API from the List implementation.,
                    label={lst:list-entry}]
 pub struct Entry<'a, T: 'a> {
     current: &'a mut cmr::guard::Guard<Node<T>>,

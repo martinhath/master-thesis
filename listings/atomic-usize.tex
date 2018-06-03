@@ -1,5 +1,5 @@
-\begin{lstlisting}[label=lst:atomicusize,caption=Signatures for selected operations on
-\code{AtomicUsize}]
+\begin{lstlisting}[style=Rust,
+  label=lst:atomicusize,caption=Signatures for selected operations on \code{AtomicUsize}]
 fn load(&self, order: Ordering) -> usize;
 fn store(&self, val: usize, order: Ordering);
 fn swap(&self, val: usize, order: Ordering) -> usize;

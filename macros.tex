@@ -1,17 +1,18 @@
 \newcommand{\fixme}[1]{{\color{black}\todo{#1}}}
 
-\newcommand{\egn}[1]{\textit{#1}}
+\newcommand{\egn}[1]{\id{#1}}
 \newcommand{\code}[1]{{\color{darkred}\ttfamily #1}}
 \newcommand{\mc}[1]{{\ttfamily #1}}
 \newcommand{\coderef}[1]{(\texttt{\color{operator}#1})}
 \newcommand{\lit}[1]{$\big<\textit{\sffamily #1}\big>$}
+\newcommand{\nullptr}{$\bot$}
+\newcommand{\typeof}{\::\,:\:}
 
 \newcommand{\rustc}{\code{rustc}}
 \newcommand{\cargo}{\code{cargo}}
 \newcommand{\rustup}{\code{rustup}}
 
 \newcommand{\lorem}{{\color{black!60}\blindtext{}}}
-
 
 % name aliases
 \newcommand{\gribb}{Gribb}
@@ -67,7 +68,19 @@ corners=0.02cm, font=\footnotesize}}
 
 
 \newcommand{\Operator}[1]{{\color{operator}#1}}
-\lstset{%
+
+\lstdefinestyle{Algo}{%
+  basicstyle=\normalsize\mdseries\itshape,
+  columns=flexible,
+  xleftmargin=15pt,
+  numbers=left,
+  keywordstyle={\bf},
+  mathescape,
+  commentstyle={\color{gray}},
+  keywords={for,if,else,return,in,to,while,continue,break,output,not}%
+}
+
+\lstdefinestyle{Rust}{%
  backgroundcolor=\color{white},
  basicstyle=\footnotesize\ttfamily,
 % breaklines=true,

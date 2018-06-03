@@ -1,4 +1,5 @@
-\begin{lstlisting}[caption=Custom allocators wrapping jemalloc and the system allocator]
+\begin{lstlisting}[style=Rust,
+caption=Custom allocators wrapping jemalloc and the system allocator]
 pub struct WrapJemalloc;
 unsafe impl GlobalAlloc for WrapJemalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {

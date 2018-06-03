@@ -1,4 +1,5 @@
 \documentclass[b5paper, twoside, openright]{report}
+% \documentclass[b6paper]{report}
 % \usepackage[lmargin=25mm, rmargin=25mm, tmargin=27mm, bmargin=30mm]{geometry}
 \usepackage[tmargin=27mm, bmargin=30mm]{geometry}
 
@@ -19,7 +20,8 @@
             linecolor=none,
             bordercolor=none,
             backgroundcolor=none]{todonotes}
-\usepackage{libertinust1math}
+% \usepackage{libertinust1math}
+\usepackage{euler}
 \usepackage{libertine}
 \usepackage{inconsolata}
 \usepackage{listings}
@@ -35,6 +37,7 @@
 \usepackage{titlesec}
 \usepackage{blindtext}
 \usepackage{microtype}
+\usepackage{clrscode3e}
 
 \usepackage{fancyhdr}
 %   \fancyhf{}
@@ -53,12 +56,12 @@
   {0ex}
   {\huge}
 
-\titleformat*{\section}{\center\Large}
-\titleformat*{\subsection}{\center\large}
-\titleformat*{\subsubsection}{\center\bfseries\normalsize}
+\titleformat*{\section}{\Large}
+\titleformat*{\subsection}{\large}
+\titleformat*{\subsubsection}{\bfseries\normalsize}
 
-
-\catcode`\_=12
+\catcode`_=12
+\begingroup\lccode`~=`_\lowercase{\endgroup\let~\sb}
 
 % Hack to make parskip and amsthm go well together.
 % \begingroup
@@ -118,6 +121,9 @@
 \clearpage\setcounter{page}{1}%breakbreak
 \renewcommand{\thepage}{\arabic{page}}%
 \part{Bing Bong}
+
+
+
 
 \pagestyle{fancy}
 

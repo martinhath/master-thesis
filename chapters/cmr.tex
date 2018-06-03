@@ -16,18 +16,18 @@ By reasoning about CMR without an implementation we later aim to show that the i
 
 We start by defining some central concepts. Memory $M$ is the set of all addresses in the address
 space of the machine. A \emph{block} is a tuple $(a, n)$ and represents the memory segment
-$\left[a, a + n\right)$. $M$ is a disjoint set $M = A \cap F$ where $A$ is the set of
-allocated blocks, and $F$ is the remaining of the memory space. $F$ needs not, and is almost never,
-a consecutive segments, but simply all memory that is outside any allocated block. We call such
+$\left[a, a + n\right)$. $M$ is a disjoint set $M = A \cap F$ where $A$ is the set of allocated
+blocks, and $F$ is the remaining of the memory space. $F$ needs not, and is almost never, a
+consecutive segments, but simply all memory that is outside any allocated block. We call such
 memory \emph{invalid}, and all memory in an allocated block \emph{valid}.  We model the program
 memory as a graph $G = (A, E)$ where $(u, v) \in E$ iff there is a pointer in $u$ pointing to an
-address in the segment $v$. That is, memory segments are the vertices, and pointers in the program
+address in the segment $v$. That is, memory blocks are the vertices, and pointers in the program
 are the edges. See \cref{fig:memory-graph} for a possible memory layout with a graph.
 
 \begin{figure}[ht]
   \centering
   \begin{subfigure}{0.45\textwidth}
-    \begin{lstlisting}
+    \begin{lstlisting}[style=Rust]
 a = Node { value = 4, next = null }
 b = Node { value = 8, next = a }
 list = [a, b, 3]
@@ -115,19 +115,27 @@ frame, but might also include a entry in a hashmap. It is these pointers that CM
 
 \section{Overview\label{sec:cmr-overview}}
 
-CMR is based on the idea that if we have access to all roots in the system at an instant, finding
-the set of all reachable blocks $R$ from the set of roots $R\sb{0}$ is simple:
-$R$ is the transitive closure of ``there is a pointer from $x$ to $y$'' on $R\sb{0}$.
-We call identifying $R$ for \emph{reachability analysis}. By then tracking all allocated blocks
-$A$, we can identify the set of unreachable block $U$ by taking the relative complement of $R$ in
-$A$: $U = A \setminus R$.
+We call a pointer from owned memory to shared memory for a \emph{root}.  CMR is based on the idea
+that if we have access to all roots in the system at an instant, finding the set of all reachable
+blocks $R$ from the set of roots $R_0$ is simple: $R$ is the transitive closure of ``there is a
+pointer from $x$ to $y$'' on $R_0$.  We call identifying $R$ \emph{reachability analysis}. By
+then tracking all allocated blocks $A$, we can identify the set of unreachable block $G$ by taking
+the relative complement of $R$ in $A$: $G = A \setminus R$.
+
+CMR tracks all roots for each thread by restricting where the roots may be stored in memory. This
+way we know at any time where all roots in the process resides, so they can be collected by any
+other thread with relatively low effort.
 
 
 When performing the reachability analysis in a concurrent systems, simply following pointers while
 maintaining a frontier of unvisited blocks is not sufficient. Since there are multiple threads in
 the system, some other thread $T'$ may come along and change pointers, causing reachable blocks to
-be observed as unreachable by the reclaiming thread, as shown in \cref{fig:pointer-swap}.
- 
+be observed as unreachable by the reclaiming thread, as shown in \cref{fig:pointer-swap}. After
+having read the left child of some node with two children, the two pointers can be swapped by the
+other thread, causing us to visit one of the nodes twice, as if the two child pointers point to the
+same node. CMR handles this problem by obtaining a snapshot of the process memory, and performs
+the reachability analysis on the snapshot.
+
 \begin{figure}[ht]
   \centering
   \input{figures/pointer-swap}
@@ -135,194 +143,178 @@ be observed as unreachable by the reclaiming thread, as shown in \cref{fig:point
   unreachable.\label{fig:pointer-swap}}
 \end{figure}
 
-In order to handle mutation problems, we obtain a snapshot of the entire processes memory by
-freezing all threads, reading their roots, and forking the process. Thus, we have a snapshot of
-the entire memory of the program, in which we also have all roots. Now the reachability analysis is
-simpler, since there will be only one thread in the forked process, namely the garbage collecting
-thread. \cref{lst:cmr} shows pseudocode for both the reclaiming thread and the other threads
-for this procedure.
 
-\begin{figure}[ht]
-  \begin{subfigure}{0.45\textwidth}
-    \begin{lstlisting}
-CMR():
-    freeze_threads()
-    wait_for_writes()
-    read_guards()
-    fork()
-    unfreeze()
-    for addr in unreachables():
-        free(addr)\end{lstlisting}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}{0.45\textwidth}
-    \begin{lstlisting}
-on_freeze():
-    write_roots()
-    register_done()
-    wait_for_unfreeze()\end{lstlisting}
-  \end{subfigure}
-  \caption{Pseudocode of CMR\@. The leftmost code is for the thread that runs the reclamation pass,
-  and the rightmost code is other threads in the system.\label{lst:cmr}}
-\end{figure}
+The \proc{Reclaim} procedure shows how we reclaim memory in CMR\@. The input is the set of
+allocated address $A$ and information on all threads $T$. In \proc{Get-Roots} we collect all roots
+for all threads. \proc{Find-Reachable} runs the reachability analysis, and returns the set of all
+reachable blocks $R$. We can then find $G$.
 
+\begin{codebox}
+\Procname{$\proc{Reclaim}(A, T)$}
+\li $\proc{Snapshot}()$
+\li $R_0 \gets \proc{Get-Roots}(T)$
+\li $R \gets \proc{Find-Reachable}(R_0)$
+\li $G \gets A \setminus R$
+\li $\proc{Free}(G)$
+\li $A \gets R$
+\end{codebox}
 
-\fixme{define ``Rust memory'' and shared memory}
+\begin{codebox}
+\Procname{$\proc{Find-Reachable}(R_0)$}
+\li $\id{Frontier} \gets R_0$
+\li $\id{Seen} \gets R_0$
+\li \While $m \gets \proc{Pop}(\id{Frontier})$
+\li   \Do \For $\id{ptr} \gets \proc{Pointers}(m)$
+\li     \Do \If $\id{ptr} \notin \id{Seen}$
+\li         \Do
+            $\proc{Insert}(\id{Seen}, \id{ptr})$
+\li	  		  $\proc{Push}(\id{Frontier}, \id{ptr})$
+            \End
+        \End
+      \End
+\li \Return $\id{Seen}$
+\end{codebox}
 
 \section{Primitives of CMR\label{sec:cmr-primitives}}
 
-The central data type to achieve this is \code{Guard}. A \code{Guard} is an object in which a
-pointer to shared memory is stored. All pointers to shared memory are stored in a Guard. By having
-access to all \code{Guard}s, CMR have access to all roots in the program at any instant.
-\code{Guard}s are similar to \gls{hps} (\cref{sec:hazard-pointers}), except that no thread
-synchronization is performed when making new or updating existing \code{Guard}s, which reduces the
-overhead of CMR significantly compared to \gls{hps}.
+In this section we look at the four data types in CMR, and operations that act on them. All types
+are generic over some type $T$, which is omitted for brevity. The operations on these types do not
+change the generic type.
 
-CMR has four types that are essential to understanding how we manage safe access to shared memory:
-\emph{Guard}, \emph{Atomic}, \emph{NullablePtr}, and \emph{Ptr}. All types are generic over the
-type of the data they protect, which is omitted for brevity.
-
-
-\begin{definition}[Guard\label{def:guard}]
-  A \emph{Guard} is an object that contains a \emph{root} or $\bot$. The Guard is non-movable in
-  memory. All roots are stored in Guards.
+\begin{definition}[\egn{Guard}\label{def:guard}]
+  \egn{Guard} is an object that either contains a root or \nullptr. The \egn{Guard} is non-movable
+  in memory. All roots are stored in \egn{Guards}.
 \end{definition}
 
-\begin{definition}[Atomic]
-  An \emph{Atomic} is a pointer type that provides safe concurrent access to its users.
+\fixme{01/06 13:44 ``other systems''}
+The \egn{Guard} is the only type that CMR defines that are different from other systems, and we
+only use \egn{Guard}s to limit the storage of roots.
+
+\begin{definition}[\egn{Atomic}\label{def:atomic}]
+  \egn{Atomic} is a pointer type that provides safe concurrent access to its users.
 \end{definition}
 
-\begin{definition}[NullablePtr]
-  \emph{NullablePtr} is an immutable pointer that may be $\bot$. It is obtained through a Guard.
+\egn{Atomic} is similar to regular atomic pointers from any programming language; it offers safe
+reads and writes for concurrent systems.
+
+\begin{definition}[\egn{NullablePtr}\label{def:nullable-ptr}]
+  \emph{NullablePtr} is an immutable pointer that may be \nullptr. It is obtained through a Guard.
   When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable thoughout the
   lifetime\footnote{We use the same meaning of lifetime as Rust (\cref{sec:rust-lifetimes})}
   of $p$.
 \end{definition}
 
-\begin{definition}[Ptr]
-  \emph{Ptr} is an immutable pointer that may \emph{not} be $\bot$. Its semantics are similar to
-  that of NullablePtr, but the two are distinct types for simplification of the null-case. All
-  accesses to shared memory is through a Ptr.
+The definition of \egn{NullablePtr} is important: it shows that we scope the immutability of a
+\egn{Guard} to the lifetime of the \egn{NullablePtr}; this allows us to have certain invariants
+that hold in between changes to a \egn{Guard} to hold for the lifetime of an \egn{NullablePtr}.
+
+\begin{definition}[\egn{Ptr}\label{def:ptr}]
+  \egn{Ptr} is an immutable pointer that may not be \nullptr. All accesses to shared memory is
+  through a Ptr.
 \end{definition}
+The semantics of \egn{Ptr} are similar to that of \egn{NullablePtr}, but the two are distinct types
+for simplification of the \nullptr-case.
 
-These four types are the building blocks of writing concurrent structures in CMR\@. All pointers
-are stored in an \mc{Atomic}, and loading an atomic using a \mc{Guard} yields a \mc{NullablePtr},
-which may be promoted to a \mc{Ptr}, if it is not null. The \mc{Ptr} provides access to the data
-the pointer points to.  In addition to having the types, CMR defines a number of operations that
-acts on these types.  We look at each type in turn, and define their operations.
 
-\subsection{Guard}
+\subsection{Operations}
+
 A Guard can be constructed with the initial value of $\bot$ with \emph{make-guard}
 \begin{equation}\label{eq:make-guard}
-  \text{make-guard\:::\:} () \to Guard
+  \proc{Make-Guard}\typeof{} () \to \id{Guard}
 \end{equation}
 It can also copy the value of another Guard with \emph{copy-guard}.
 \begin{equation}\label{eq:copy-guard}
-  \text{copy-guard\:::\:} (Guard, Guard) \to ()
+  \proc{Copy-Guard}\typeof{} (\id{Guard}, \id{Guard}) \to ()
 \end{equation}
 
-General usage of \mc{Guard} is to construct the number of \mc{Guard}s one needs for some operation.
-These \mc{Guard}s are then used to load \mc{Atomic}s into.
-
-
-\subsection{Atomic}
+General usage of \egn{Guard} is to construct the number of \egn{Guard}s one needs for some operation.
+These \egn{Guard}s are then used to load \egn{Atomic}s into.
 
 Atomic is a regular atomic pointer variable, supporing operations such as \emph{store}, and
 \emph{compare-and-swap}.
 \begin{equation}\label{eq:atomic-store}
-  \text{store\:::\:} (Atomic, NullablePtr) \to ()
+  \proc{Store}\typeof{} (\id{Atomic}, \id{NullablePtr}) \to ()
 \end{equation}
 \begin{equation}\label{eq:atomic-cas}
-  \text{compare-and-swap\:::\:} (Atomic, NullablePtr, NullablePtr) \to NullablePtr
+  \proc{Compare-And-Swap}\typeof (\id{Atomic}, \id{NullablePtr}, \id{NullablePtr}) \to
+  \id{NullablePtr}
 \end{equation}
 
 It is not safe to \emph{load} an atomic, as there is no guarantee that the
 pointer read is protected by a guard. Instead, CMR defines \emph{load-atomic}, which loads an
 Atomic into a Guard, and returns the value read as a NullablePtr:
 \begin{equation}\label{eq:load-atomic}
-  \text{load-atomic\:::\:} (Guard, Atomic) \to NullablePtr
+  \proc{Load-Atomic}\typeof{} (\id{Guard}, \id{Atomic}) \to \id{NullablePtr}
 \end{equation}
-
-\subsection{NullablePtr}
 
 The NullablePtr is just a convenience type in order to not have to handle the $\bot$ case of all
 pointers. Whether the pointer is null or not can be checked:
 
 \begin{equation}\label{eq:nullable-is-null}
-  \text{is-null\:::\:} (NullablePtr) \to bool
+  \proc{Is-Null}\typeof (\id{NullablePtr}) \to \id{bool}
 \end{equation}
 
-CMR also supports using the lower bits of a pointer to store extra information (a \emph{tag}). This
-is useful for implementing deletion in linked lists, among other things.  The tag is read with
-\emph{tag},
-\begin{equation}\label{eq:ptr-tag}
-  \text{tag\:::\:} (NullablePtr) \to int
-\end{equation}
-and a new NullablePtr can be constructed with a given tag using \emph{with-tag}.
-\begin{equation}\label{eq:ptr-with-tag}
-  \text{with-tag\:::\:} (NullablePtr, int) \to NullablePtr
-\end{equation}
-The actual address is obtained through \emph{addr}
-\begin{equation}\label{eq:ptr-addr}
-  \text{addr\:::\:} (NullablePtr) \to int
-\end{equation}
-
-\subsection{Ptr}
-
-\fixme{Reconsider having NullablePtr in here. I think its mostly a rust impl thing, as we just want
-Deref on Ptr but must handle null as well.}
 Ptr may be used in the place of NullablePtr, since is it just a special case of it. All functions
 that take a NullablePtr can also take a Ptr.
 
 
-\subsection{Other actions}
 
-We also need a few other operations to make sure that the implementation of funcions are valid.
-For instance, in load-atomic there is a window in between reading the atomic and storing the
-pointer read it in the guard in which a reclamation pass may have happened. The higher order
-function \emph{without_reclamation} makes sure that this is safe, by running the given function
-without a reclamation pass happening in between:
-\begin{equation}\label{eq:without_reclamation}
-  \text{without_reclamation\:::\:} (() \to T) \to T
+\subsection{Pointer Tagging}
+
+CMR also supports using the lower bits of a pointer to store extra information (a \emph{tag}). This
+is useful for implementing deletion in linked lists, among other things. The tag is read with
+\emph{tag},
+\begin{equation}\label{eq:ptr-tag}
+  \proc{Tag}\typeof{} (\id{NullablePtr}) \to \id{int}
+\end{equation}
+and a new NullablePtr can be constructed with a given tag using \emph{with-tag}.
+\begin{equation}\label{eq:ptr-with-tag}
+  \proc{With-Tag}\typeof{} (\id{NullablePtr}, \id{int}) \to \id{NullablePtr}
+\end{equation}
+The actual address of the pointer is obtained through \emph{addr}
+\begin{equation}\label{eq:ptr-addr}
+  \proc{Addr}\typeof{} (\id{NullablePtr}) \to \id{int}
 \end{equation}
 
-As CMR controls memory allocations, it also defines its own allocation function:
-\begin{equation}\label{eq:alloc}
-  \text{alloc\:::\:} (Guard, T) \to Ptr
-\end{equation}
 
 
 \section{Correctness\label{sec:cmr-correctness}}
 
-With these types and operations we are able to prove important properties of the system.
+Having defined the types and operations that CMR provides we prove important properties of the
+system.
 
-\begin{theorem}[\mc{Guard} is valid]\label{thm:guard-valid}
-  If a \mc{Guard} is not $\bot$, it points to valid memory.
+\begin{theorem}[\egn{Guard} is valid]\label{thm:guard-valid}
+  If a \egn{Guard} is not $\bot$, it points to valid memory.
 \end{theorem}
 \begin{proof}
-  Since the \mc{Guard} $g \neq \bot$, it has loaded its value from an Atomic $a$ using
-  \mc{atomic-load}.  We first show that $a$ is itself in valid memory by induction: \emph{Base
-  case:} the Atomic resides in Rust memory, and is thus valid. \emph{Inductive case:} the
-  \mc{Atomic} resides in shared memory, and thus accessed through a \mc{Ptr} $p$.  This \mc{Ptr} is
-  protected by a \mc{Guard} $g\sb{2} \neq g$, since $g\sb{2}$ is immutable throughout the lifetime
-  of $p$, and $g$ is being changed. $g\sb{2}$ is valid by induction, so the pointer value in $a$ is
-  reachable. This shows that the value read from the \mc{Atomic} is valid.
-
-  Using \mc{without_reclamation} (\cref{eq:without_reclamation}), we make sure that the read of $a$
-  and the store in $g$ happens without a reclamation pass in between. Thus all valid pointers
-  before the read is still valid after the store. After the store operation in $g$ has completed,
-  $g$ protects $v$. Thus $v$ is valid.
+  \todo{this}
 \end{proof}
 
-\begin{lemma}[\mc{Ptr} is valid]\label{lm:ptr-valid}
-  The \mc{Ptr} points to valid memory.
+\begin{lemma}[\egn{Ptr} is valid]\label{lm:ptr-valid}
+  The \egn{Ptr} points to valid memory.
 \end{lemma}
 \begin{proof}
-  The  \mc{Ptr} $p$ is read from a \mc{Guard} $g$ and $g$ is immutable throughout the lifetime of
+  The  \egn{Ptr} $p$ is read from a \egn{Guard} $g$ and $g$ is immutable throughout the lifetime of
   $p$ so they have the same value. $p \neq \bot$, so this follows by \cref{thm:guard-valid}.
 \end{proof}
 
 \cref{lm:ptr-valid} is the most important result in this section, since it guarantees that
-accesses of the memory in a \mc{Ptr} is valid. Thus, a memory access through a \mc{Ptr} can not
+accesses of the memory in a \egn{Ptr} is valid. Thus, a memory access through a \egn{Ptr} can not
 result in a invalid-read (\cref{def:invalid-read}) or use-after-free (\cref{def:use-after-free})
 hazard.
+
+\begin{lemma}
+  CMR has no \egn{use-after-free} or \egn{invalid-read}
+\end{lemma}
+\begin{proof}
+  This follows from \cref{lm:ptr-valid} as all accesses to shared memory are through a \egn{Ptr}
+  (\cref{def:ptr}).
+\end{proof}
+
+\begin{lemma}
+  CMR has no \egn{double-free}
+\end{lemma}
+\begin{proof}
+  $G \gets A \setminus R$ so only allocated addresses are freed. $A_{i+1} \gets R$, so freed
+  addresses are discarded from $A$ in each call to \proc{Reclaim}.
+\end{proof}

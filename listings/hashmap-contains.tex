@@ -1,7 +1,8 @@
 \begin{lstlisting}[
-label=lst:hashmap-contains,
-caption=Implementation of \code{HashMap::contains}.,
-numbers=left, numberstyle=\color{gray}\ttfamily{}HC,
+  style=Rust,
+  label=lst:hashmap-contains,
+  caption=Implementation of \code{HashMap::contains}.,
+  numbers=left, numberstyle=\color{gray}\ttfamily{}HC,
 ]
 impl<K, V> HashMap<K, V> {
     pub fn contains(&self, k: &K) -> bool {
