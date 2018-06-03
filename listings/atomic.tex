@@ -1,20 +1,14 @@
 \begin{lstlisting}[
   style=Rust,
   caption=Excerpt of \mc{Atomic}s definitions (Trait bounds omitted for brevity),
-label=lst:atomic]
-pub struct Atomic<T> {
-    data: AtomicUsize,
-    _marker: PhantomData<T>,
-}
+label=lst:def-atomic]
+pub struct Atomic<T> { data: AtomicUsize, _marker: PhantomData<T>, }
 impl<T> Atomic<T> {
     pub fn cas<'a, A, B>(&self, a: A, b: B, ordering: Ordering)
      -> Result<A, NullablePtr<'a, T>> {
         let (old, new) = (raw(a), raw(b));
         let ret = self.data.compare_and_swap(old, new, ordering);
         if ret == old { Ok(A::try_from(NullablePtr::new(ret)).unwrap()) }
-        else { Err(NullablePtr::new(ret)) }
-    }
-    ...
-}
-
+        else { Err(NullablePtr::new(ret)) } }
+    (*\lit{\dots Remaining methods}*) }
 \end{lstlisting}

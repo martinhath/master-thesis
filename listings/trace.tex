@@ -6,23 +6,14 @@
   numbers=left,
   numberstyle=\color{gray}\ttfamily{}T,
   ]
-pub trait Trace {
-    fn count(&self) -> usize { 0 }
-    fn write(&self, &mut [TraitObject]) -> usize { 0 }
-}
-pub struct Node<T> {
-    data: ManuallyDrop<T>,
-    next: Atomic<Node<T>>,
-}
+pub trait Trace { fn count(&self) -> usize { 0 }
+                  fn write(&self, &mut [TraitObject]) -> usize { 0 } }
+pub struct Node<T> { data: ManuallyDrop<T>,
+                     next: Atomic<Node<T>> }
 impl<T> cmr::Trace for Node<T> {
     default fn count(&self) -> usize { 1 }
     default fn write(&self, slice: &mut [TraitObject]) -> usize {
         let p = unsafe { self.next.load(SeqCst) };
-        if !p.is_null() {
-            slice[0] = ptr::trait_object(p);
-            1
-        } else {
-            0
-        }
-    }
-}\end{lstlisting}
+        if !p.is_null() { slice[0] = ptr::trait_object(p);
+                          1 } 
+        else { 0 } } }\end{lstlisting}
