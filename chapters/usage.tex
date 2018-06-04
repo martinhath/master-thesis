@@ -1,9 +1,13 @@
 \chapter{Usage of CMR\label{ch:usage}}
 
 \fixme{29/05 08:36 Write more here}
-In this chapter we look at usage code for CMR. We have implemented four data structures: a stack, a
-queue, a list, and a hashmap. We want to look closer at how the abstractions that CMR provides are
-used, and how difficult they are to use.
+In this chapter we look at usage code for CMR\@. The goal of this chapter is twofold: we want to
+look closer at how the abstractions that CMR provides are used, and how difficult they are to use;
+we also believe that showing the implementations of the data structures we can further reason about
+the performance characteristics and pitfalls for the results obtained in \cref{ch:results}.
+
+We have implemented four data structures: a stack, a queue, a list, and a hashmap, and the
+implementations will be considered in sequence.
 
 \section{Lock-free Stack\label{sec:usage-stack}}
 
@@ -15,9 +19,13 @@ node.}
 \end{figure}
 
 We begin by looking at an implementation of a conurrent stack, which is arguably the simplest
-concurrent data strucutre. The definitions of the \code{Stack} and \code{Node} structs and the two
-most important operations on a stack, \code{push} and \code{pop}, is shown in \cref{lst:stack-ops}.
-We look at each one in turn. Construction of the stack is omitted for brevity.
+concurrent data strucutre. The stack is the well known Treiber Stack
+from~\cite{treiber1986systems}.
+
+The definitions of the \code{Stack} and \code{Node} structs and the two most important operations
+on a stack, \code{push} and \code{pop}, is shown in \cref{lst:stack-ops}. We look at each one in
+turn. Construction of the stack is omitted for brevity, since an empty stack just has a \code{null}
+pointer as its top node.
 
 \begin{figure}[ht]
 \input{listings/stack-ops}
@@ -34,17 +42,16 @@ new \code{node} \coderef{ST7}, which is done outside the retry loop so that we o
 allocate one time per call to \code{push}. Now we enter the retry loop, which we repeat until we
 succeed in changing the top pointer of the stack to our new node.
 The top node is read \coderef{ST8}, and the \code{next} pointer of the new node is set to the head
-\fixme{06/05 19:14 write something on \code{unsafe} here}
 \coderef{ST9}. If we succeed of chaning the \code{top}  pointer of the stack to our new node, we
 break out of the loop and return \coderef{ST10}. If not, we retry until we do.
 
 
 \subsubsection{Pop}
 
-\code{pop} is similar to \code{push}. We declare two \code{Guard}s \coderef{ST13}, but this time they
-are for the first and second node in the stack. We read the \code{top} pointer \coderef{ST14}, and
-return from the function if it is \code{null} using the \code{?} Rust operator. We then read the
-next pointer of the node \coderef{ST15}; here the \code{null} case is the same as the
+\code{pop} is similar to \code{push}. We declare two \code{Guard}s \coderef{ST13}, but this time
+they are for the first and second node in the stack. We read the \code{top} pointer \coderef{ST14},
+and return from the function if it is \code{null} using the \code{?} Rust operator. We then read
+the next pointer of the node \coderef{ST15}; here the \code{null} case is the same as the
 non-\code{null} case. We try to swap the head pointer from the first to the second node
 \coderef{ST16}; if we fail we restart, and if we succeed we move out the \code{Node} from the
 \code{Guard}. This is an \code{unsafe} operation, as the type is copied out of its original place,
@@ -55,10 +62,10 @@ consider two threads $T\sb{1}$ and $T\sb{2}$ using a \code{Stack<Box<T>>}. $T\sb
 a node $n$, and $T\sb{2}$ is \code{pop}ping $n$ from the stack, getting the \code{Box<T>} back from
 it. Now $T\sb{2}$ \code{drop}s the \code{Box}, which frees the pointer. If $T\sb{1}$ decides to
 look at the data in $n$, it will dereference a freed pointer, which is a use-after-free
-(\cref{def:use-after-free}). \fixme{06/05 19:14 fix this argument please} Despite being \code{unsafe} in the
-general case, it is safe for the implementation of the stack as presented, since no operation on
-the stack looks at the data of a node, except in \coderef{ST17}, where only one thread may be for
-any given node, since we succeed the \code{cas} operation.
+(\cref{def:use-after-free}). Despite being \code{unsafe} in the general case, it is safe for the
+implementation of the stack as presented, since no operation on the stack looks at the data of a
+node, except in \coderef{ST17}, where only one thread may be for any given node, since we succeed
+the \code{cas} operation.
 
 
 
@@ -66,10 +73,19 @@ any given node, since we succeed the \code{cas} operation.
 \section{Lock-free Queue\label{sec:usage-queue}}
 
 
-\fixme{06/05 19:14 refs here pls. Explain how it works?}
 The queue implemented is based on the well known Michael-Scott Queue from~\cite{michael1996simple}.
-\code{push} is shown in \cref{lst:msqueue}; \code{pop} is omitted due to its similarity with
-\code{Stack::pop}.
+The idea behind the queue is to have a sentinel node as the first node of the queue in order to
+avoid difficult edge cases when the queue is empty. The sentinel node is the greyed out node in
+\cref{fig:msqueue}.
+
+The \code{Node} and \code{MsQueue} struct definitions are omitted, as they are very similar to
+those of the \code{Stack}. The main difference is that in the \code{Queue} we maintain both the
+\code{head} and \code{tail}. The following invariants hold for the \code{Queue}: \code{head} is
+never \code{null}, at any instant \code{tail} is either the last, or second last node in the
+queue.
+
+\code{push} is shown in \cref{lst:msqueue}; \code{pop} is omitted due
+to its similarity with \code{Stack::pop}.
 
 \begin{figure}[ht]
 \input{listings/msqueue}
@@ -91,7 +107,8 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 \begin{figure}[ht]
 \centering
 \input{figures/queue}
-\caption{The Michael-Scott Queue. The first node in the queue is a sentinel node.}
+  \caption{The Michael-Scott Queue. The first node in the queue is a sentinel
+  node.\label{fig:msqueue}}
 \end{figure}
 
 
@@ -101,8 +118,9 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 \fixme{07/05 22:22 insert more stuf here?}
 Michael introduced a concurrent List in~\cite{harris2001pragmatic}. The list is similar to the
 Stack from \cref{sec:usage-stack}, but we support more operations than \code{push} and \code{pop},
-including queries and removals, and insertions into the list. Definitions of \code{List} are very
-similar to that of the \code{Stack} and \code{Queue}, and is therefore omitted here.
+including queries and removals, and insertions into arbitrary points in the list. Definitions of
+\code{List} are very similar to that of the \code{Stack} and \code{Queue}, and is therefore
+omitted.
 
 Having arbitrary \code{insert} and \code{remove} opens for a problem known as \emph{double-remove},
 shown in \cref{fig:list-remove}. Let there be two threads in the system $T\sb{1}$ and $T\sb{2}$,
@@ -122,10 +140,11 @@ A solution to this problem, as shown by Harris in~\cite{michael2002high}, is to 
 alignment on modern CPU architectures: \code{struct}s are \emph{aligned} in memory, meaning their
 address is a multiple of some power of two. This causes the least significant bits of their address
 to always be zero; bits that may be used for other purposes. We use the least significant bit in
-the \code{.next} field in a node for a \emph{tag}, signaling that the node is logically deleted,
-and should not be acted upon. To see how this helps the problem as shown above, $T\sb{1}$ would
-start out the deletion process of B by calling \code{cas(B.next, C, with_tag(C, 1))}. Should this
-fail, $T\sb{1}$ can just read \code{B.next} again, and retry. When it succeeds, it may try to
+the \code{.next} field in a node for a \emph{tag}\footnote{Now we finally understand why CMR
+supports pointer tagging from \cref{sec:cmr-pointer-tagging}}, signaling that the node is logically
+deleted, and should not be acted upon. To see how this helps the problem as shown above, $T\sb{1}$
+would start out the deletion process of B by calling \code{cas(B.next, C, with_tag(C, 1))}. Should
+this fail, $T\sb{1}$ can just read \code{B.next} again, and retry. When it succeeds, it may try to
 \code{cas} \code{A.next} over B to C. Now $T\sb{2}$ realizes that it should not insert X between B
 and C, since it reads the tag of B, realizing that it was deleted.
 
