@@ -9,7 +9,7 @@ We start this chapter by implementing the primitive types and operations from
 
 
 
-\section{Data}
+\section{Data\label{sec:impl-data}}
 
 In order to better understand how CMR is laid out, we start out by looking at the data.
 \todo{flowcharts Fred brooks}
@@ -47,7 +47,6 @@ An excerpt of the definitions of \code{Guard} is shown in \cref{lst:guard-impl}.
 
 \code{Guard::register} gets a mutable reference to the thread local \code{Vec} of \code{Guard}s,
 and inserts a pointer to itself into it. \code{Guard::drop} (omitted) does the opposite.
-Note that we insert a \code{GuardPointer}; we will revisit this in \cref{sec:impl-tracking-types}.
 \code{Guard::new} is marked \code{unsafe} since the caller must guarantee to \code{register} the
 guard before using it. This is normally handled by the \code{guard!} macro, but there are use cases
 for calling \code{new} directly. Usage of the guard is normally as follows:
@@ -150,6 +149,98 @@ assert that this failure should never happen \coderef{TA9} with the rationale th
 some type \code{P} into a \code{NullablePtr} and changed its tag, we should be able to convert back
 to \code{P}, even though the conversion is not always possible in general.
 
+\subsection{Free Functions}
+
+Having looked at the types and their member functions we now look at the implemetations of
+important free functions.
+
+We first look at the higher order function \code{without_reclamation}:
+\begin{lstlisting}[style=Rust]
+pub fn without_reclamation<R, F: FnOnce() -> R>(f: F) -> R {
+    let lock = ALLOC_LOCK.lock();
+    compiler_fence(SeqCst);
+    let ret = f();
+    compiler_fence(SeqCst);
+    drop(lock);
+    ret }
+\end{lstlisting}
+The function runs the given closure without having a reclamation pass happening in between.  The
+function simply grabs the reclamation lock before executing; is it however important that the
+overhead here is as low as possible, as this is used in other important functions. For this reason
+CMR also has the \code{without_reclamation_repeat} function, with attempts to run the closure
+without any synchronization; if a reclamation pass happend while running, we rerun the function.
+
+With the ability to run arbitrary code without a reclamation pass happening in between we can
+implement \code{guard}, which is \proc{Load-Atomic} (\cref{eq:load-atomic}).
+\begin{lstlisting}[style=Rust]
+pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
+    without_reclamation(|| { let p = unsafe { a.load(SeqCst) };
+                             guard.inner = ptr::raw(p);
+                             p }) }
+\end{lstlisting}
+Since we guarantee that no pass happend in between reading the \code{Atomic} and protecting the
+data it pointed to in the \code{Guard}, we know that the data is still valid.
+
+
+Another important function is \code{alloc}, which allocates memory:
+\begin{lstlisting}[style=Rust]
+pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
+    let ptr = alloc::alloc(t);
+    guard.inner = ptr::addr(ptr);
+    alloc::register(ptr);
+    ptr }
+\end{lstlisting}
+Note that we do not need to use \code{without_reclamation} here, since the newly address is
+protected by the \code{Guard} before being registered; recall from \cref{sec:impl-data} that only
+registered allocations are subject for reclamation.
+
+
+
+
+\subsection{Correctness}
+
+We argue for the correctness of the primitives as presented with respect to the definitions from
+\cref{ch:cmr}.
+
+
+\begin{claim}
+  \cref{def:load-atomic-no-reclamation} is attainable.
+\end{claim}
+\begin{proof}
+  \code{guard} implements \proc{Load-Atomic} with the wanted semantics.
+\end{proof}
+
+\begin{claim}
+  \code{Guard} satisfies \cref{def:guard}.
+\end{claim}
+\begin{proof}
+  The \code{Guard} is constructed with \code{null}, and gets values from \code{Atomic}s using
+  \code{cmr::guard}; the values read are roots.
+  Using the \code{guard!} macro it is impossible to move the \code{Guard}.
+\end{proof}
+
+\begin{claim}
+  \code{NullablePtr} satisfies \cref{def:nullable-ptr}.
+\end{claim}
+\begin{proof}
+  The type does not expose any mutating methods, so it is immutable.
+  Looking at the function \code{guard} we see that the \code{\&mut Guard} is mutably borrowed, and
+  since the lifetime of the \code{NullablePtr} returned has the same lifetime, the \code{Guard} is
+  borrowed for the lifetime of the \code{NullablePtr}
+\end{proof}
+
+\begin{claim}
+  \code{Ptr} satisfies \cref{def:ptr}.
+\end{claim}
+\begin{proof}
+  The type does not expose any mutating methods, so it is immutable.
+  Since \code{Ptr} is the only type implementing \code{Deref} and no function return a \code{\&T},
+  all accesses to \code{T}s must be though the \code{Ptr}.
+\end{proof}
+
+
+We argue that since the primitives defined in \cref{ch:cmr} are implemented with the defined
+semantics the results from \cref{sec:cmr-correctness} holds for the Rust implementation of CMR.
 
 
 \section{Snapshot\label{sec:impl-snapshot}}
@@ -195,7 +286,7 @@ signal handler. Pseudo code for the signal handler is shown in \cref{lst:signal-
   \begin{lstlisting}[
     style=Rust,
     numbers=left,
-    numberstyle=\color{grey}\ttfamily{}SH,
+    numberstyle=\color{gray}\ttfamily{}SH,
     caption=Pseudocode for the signal handler used by CMR,
     label=lst:signal-handler,
   ]
@@ -229,9 +320,9 @@ from \cref{sec:cmr-overview}, and is shown in \cref{lst:impl-find-reachable}. We
 \code{HashMap} \coderef{FR\ref*{c:fr-mk-seen}} for all blocks we have seen, and a \code{VecDeque}
 \coderef{FR\ref*{c:fr-mk-queue}} for the queue of blocks we want to visit. For efficiency reasons
 we write out the reachable set when we find a new block, instead of collecting up the blocks and
-writing it in one iteration \coderef{FR\ref*{c:fr-write}}.  For this implementation we capped the
+writing it in one iteration \coderef{FR\ref*{c:fr-write}}. This implementation has capped the
 number of pointers a single type can write out to be 32 \coderef{FR\ref*{c:fr-buffer}}; while this
-is not optimal in the general case, most types only require one or two pointers.
+is not sufficient in the general case, most types only require one or two pointers.
 
 
 
@@ -269,7 +360,7 @@ fn mark_and_sweep(mut cursor: Cursor<&mut [u8]>, roots: Vec<TraitObject>) -> usi
 Finding pointers in arbitrary data types might involve significant work since the size of the data
 types can be arbitrarily large. In addition, memory might not be initialised, and false positives
 might occur if we are not careful. Instead of scanning through the memory block linearly, CMR
-defines the Trait called \code{Trace}, which all data types that is in shared memory must
+defines the Trait \code{Trace}, which all data types that is stored in shared memory must
 implement.  A type implementing \code{Trace} knows a bound on how many shared memory pointers it
 contains, and can write these out to a buffer. For instance, a \code{Node} in a single linked list
 contains only one pointer, namely its next pointer, which is trivial to write out.
@@ -277,7 +368,10 @@ contains only one pointer, namely its next pointer, which is trivial to write ou
 The implementation of this uses \emph{Trait Objects} (\cref{sec:trait-objects}), which involves
 dynamic dispatch. This solution is potentially expensive, as it may involve cache misses in the
 I-cache, although the number of misses is limited by the difference in data types in shared memory,
-which normally is smaller than in Rust memory.
+which normally is smaller than in Rust memory. \cref{lst:trace} shows the \code{Trait} as well as a
+sample implementation for a node in a linked list.  This implementation uses \emph{specialization}
+(\cref{sec:specialization}) as the implementation of \code{Node}s containing data that itself is
+\code{Trace} is different.
 
 \begin{figure}[ht]
   \input{listings/trace}
@@ -290,51 +384,32 @@ pointers written. This is useful for collection types, like \code{Vec} or \code{
 also may contain pointers to shared memory.
 
 \code{Node} is a standard node from a linked list, containing \code{data}, and a \code{next}
-pointer. The implementation of \code{write} loads the \code{next} pointer~\coderef{T12}, which is
+pointer. The implementation of \code{write} loads the \code{next} pointer~\coderef{T8}, which is
 an \code{unsafe} operation, as there is no \code{Guard} protecting the pointer. This is safe in the
 context of the reclaiming thread since the memory will be freed at earliest when we finish the reachability
 analysis, and at that point we no longer read the memory. The implementation only writes out the
-pointer if it is non-null. While this is not required for CMR to function, it simplifies the logic
+pointer if it is non-null; while this is not required for CMR to function, it simplifies the logic
 in the reachability analysis.
 
 
-\section{Tracking Types\label{sec:impl-tracking-types}}
+\subsection{Destructors}
 
-\todo{03/06 14:14 GuardPointer, DynDispatch?}
-
-
-\section{Other Things}
-\todo{name}
-
-In addition to the types member function, we have defined two important free functions:
-\code{guard} and \code{alloc}.
-\code{guard} takes a \code{\&mut Guard} and \code{\&Atomic}, \code{load}s the atomic, and protects
-the pointer read in the \code{Guard}, without a reclamation pass happening in between --- this is
-ensured by the \code{atomic} call.
-
-\begin{lstlisting}[style=Rust]
-pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
-    without_reclamation(|| { let p = unsafe { a.load(SeqCst) };
-                             guard.inner = ptr::raw(p);
-                             p }) }
-\end{lstlisting}
-\code{alloc} is similar to \code{Box::new}, as it just wraps \code{cmr::alloc::alloc} in addition
-to protecting the pointer returned in the \code{Guard} passed in.
-\begin{lstlisting}[style=Rust,numbers=left, numberstyle=\color{gray}\ttfamily{}A]
-pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
-    let ptr = alloc::alloc(t);
-    guard.inner = ptr::addr(ptr);
-    alloc::register(ptr);
-    ptr }
-\end{lstlisting}
+Since Rust uses the \gls{raii} pattern extensively, we would like to run the destructors of type
+when we free memory of that type. However, due to constraints in the the type system, this has
+shown to be difficult to implement. We would like to have a single function \code{foo<T>} that,
+based on whether the generic type \code{T} implements \code{Drop} or not to run have two different
+implementations. There is no implemented solutions in the type system that allows this.
+See~\cite{rust-impl-overlap} for discussion on the topic.
+The main difference between this and \code{Trace} is that CMR requires all types to implement
+\code{Trace}, but implementing \code{Drop} is optional.
 
 
-\section{Correctness}
-\todo{name}
 
-\begin{claim}
-  \code{Guard} satisfies \cref{def:guard}.
-\end{claim}
+
+
+
+
+
 
 
 
@@ -342,6 +417,9 @@ pub fn alloc<T: Trace>(guard: &mut Guard<T>, t: T) -> Ptr<T> {
 
 
 \section{Complications}
+
+A number of implementation complications arised while deleveopting CMR\@. We look at a few of them
+here.
 
 \subsection{Locks in libc\label{sec:alloc-lock}}
 
@@ -364,13 +442,33 @@ prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads} 
 handling on Linux, which allocates internally, both in \code{spawn} and \code{join}. The former may
 be circumvented by aquiring the allocation lock before calling it, but this is no solution for the
 latter, since the thread may depend on allocating before exiting.
-\fixme{deactivate/reactivate around joins?}
 
-\fixme{add example or something here}
 
 \subsection{SignalVec}
 
+For performance reasons threads store their allocation in \gls{tls} in between reclamation passes
+in a \code{Vec}.  The allocations are later collected in the threads signal handler when some
+thread wants to reclaim memory, as the reclaiming thread requires access to all allocations in the
+process. However, due to the asynchronous nature of signals we run into problems if a thread is in
+the middle of some operation on the \code{Vec} when it is signaled, since the vector is copied and
+\code{clear()}ed in the signal handler.
+
+To handle this compilication we made \code{SignalVec}, a \code{Vec} that supports asynchronous
+\code{clear()}s. The implementation is a standard \code{Vec} implementation except that we use
+\code{cas} to increment the \code{length} field of the \code{SignalVec}, such that we can detect
+the case where \code{clear()} was called in the middle of \code{push}. Since we are writing to the
+last element, we do not risk overwriting any values. The \code{SignalVec} is specifically designed
+to only work in the exact use case that CMR requires.
+
+
 \subsection{Thread Registration}
+
+Thread startup and shutdown has shown to be a difficult problem to handle, especially when
+carefully managing when threads are allowed to allocate. Early attempts were made to automate this
+using lazy initialization of thread local variables, but controlling allocations in these, or
+guaranteeing the order of initialization was problematic. Testing with continously checking whether
+the thread was initialized in CMR methods showed that it imposed too much overhead for the stragety
+to be viable.
 
 
 

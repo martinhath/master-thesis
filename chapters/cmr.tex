@@ -97,10 +97,10 @@ solution, having ``solved'' single threaded memory management turns out to be of
   shared memory may contain pointers to owned memory, and vice versa.\label{fig:rust-shared-mem}}
 \end{figure}
 
-We divide up $A$ into two disjoint parts: \emph{owned} and \emph{shared} memory.  Owned memory is
-all memory which management is already handled by some system, like Rusts ownership model or the
-smart pointers of C++. Shared memory is the memory in which the structures that is not modelled well
-by other constructs live, like the nodes in a linked list.
+We divide up $A$ into two disjoint parts $O \cup S$: \emph{owned} and \emph{shared} memory.  Owned
+memory is all memory which management is already handled by some system, like Rusts ownership model
+or the smart pointers of C++. Shared memory is the memory in which the structures that is not
+modelled well by other constructs live, like the nodes in a linked list.
 
 A key idea to recognise is that despite data being in Shared memory, they might themselves own data
 that is in Owned memory, like the binary tree in \cref{fig:rust-shared-mem}. The destruction of a
@@ -226,6 +226,10 @@ It can also copy the value of another Guard with \emph{copy-guard}.
 \begin{equation}\label{eq:copy-guard}
   \proc{Copy-Guard}\typeof{} (\id{Guard}, \id{Guard}) \to ()
 \end{equation}
+The pointer a \egn{Guard} holds can also be read:
+\begin{equation}\label{eq:read-guard}
+  \proc{Read-Guard}\typeof{} (\id{Guard}) \to \id{NullablePtr}
+\end{equation}
 
 General usage of \egn{Guard} is to construct the number of \egn{Guard}s one needs for some operation.
 These \egn{Guard}s are then used to load \egn{Atomic}s into.
@@ -281,29 +285,51 @@ The actual address of the pointer is obtained through \emph{addr}
 \section{Correctness\label{sec:cmr-correctness}}
 
 Having defined the types and operations that CMR provides we prove important properties of the
-system.
+system. In this section we may assume that no reclamation pass is happening within the procedure
+\proc{Load-Atomic}:
+
+\begin{claim}
+  \label{def:load-atomic-no-reclamation}
+  No reclamation happens while the procedure \proc{Load-Atomic} is running.
+\end{claim}
+
+\begin{lemma}
+If a \egn{Guard} is valid, then any \egn{Ptr} read from it is valid.
+\end{lemma}
+\begin{proof}
+  The \egn{Ptr} $p$ is read from a \egn{Guard} $g$ and $g$ is immutable throughout the lifetime of
+  $p$ so they have the same value: $g = p \neq \bot$.
+\end{proof}
 
 \begin{theorem}[\egn{Guard} is valid]\label{thm:guard-valid}
   If a \egn{Guard} is not $\bot$, it points to valid memory.
 \end{theorem}
 \begin{proof}
-  \todo{this}
+  The \egn{Guard} got its pointer from an \egn{Atomic} $a$ using \proc{Load-Atomic}.
+  We start by showing that $a$ is valid.
+
+  If $a \in O$ then $a$ is valid.  Else then $a \in S$, so
+  it is accessed through a \egn{Ptr} $p$, which is read from a \egn{Guard} $g'$.  Since
+  \proc{Load-Atomic} mutates $g$ and $g'$ is immutable throughout the lifetime of $p$
+  (\cref{def:nullable-ptr}), $g \neq g'$. Thus $a$ is valid by induction.
+
+  Next, since $a$ is valid, it is reachable, and any address reachable from it is also reachable.
+  Since the \egn{Guard} $g$ is protecting the pointer read from $a$, and since no reclamation may
+  happen during \proc{Load-Atomic}, $g$ points to valid memory.
 \end{proof}
 
 \begin{lemma}[\egn{Ptr} is valid]\label{lm:ptr-valid}
   The \egn{Ptr} points to valid memory.
 \end{lemma}
 \begin{proof}
-  The  \egn{Ptr} $p$ is read from a \egn{Guard} $g$ and $g$ is immutable throughout the lifetime of
-  $p$ so they have the same value. $p \neq \bot$, so this follows by \cref{thm:guard-valid}.
+  This follows from \cref{thm:guard-valid} and the fact that a \egn{Ptr} cannot be constructed from
+  a \egn{Guard} that is \nullptr.
 \end{proof}
 
-\cref{lm:ptr-valid} is the most important result in this section, since it guarantees that
-accesses of the memory in a \egn{Ptr} is valid. Thus, a memory access through a \egn{Ptr} can not
-result in a invalid-read (\cref{def:invalid-read}) or use-after-free (\cref{def:use-after-free})
-hazard.
+\cref{lm:no-uaf} and \cref{lm:no-df} follows, which guarantees that neither of the three memory
+hazards defined in \cref{sec:cmr-primitives} are possible in CMR.
 
-\begin{lemma}
+\begin{lemma}\label{lm:no-uaf}
   CMR has no \egn{use-after-free} or \egn{invalid-read}
 \end{lemma}
 \begin{proof}
@@ -311,7 +337,7 @@ hazard.
   (\cref{def:ptr}).
 \end{proof}
 
-\begin{lemma}
+\begin{lemma}\label{lm:no-df}
   CMR has no \egn{double-free}
 \end{lemma}
 \begin{proof}
