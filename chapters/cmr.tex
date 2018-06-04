@@ -38,7 +38,7 @@ list = [a, b, 3]
     \input{figures/graph-reachability}
   \end{subfigure}
   \caption{Code sample (left) with possible heap layout (right). If the black filled node is the
-  only root, the black nodes are reachable, and the gray nodes are not.\label{fig:memory-graph}}
+  only root, the black nodes are reachable, and the grey nodes are not.\label{fig:memory-graph}}
 \end{figure}
 
 As most programs need memory blocks of dynamic size, allocation and deallocation,
@@ -58,8 +58,8 @@ As most programs need memory blocks of dynamic size, allocation and deallocation
 \end{definition}
 
 
-\egn{use-after-free} is the most hazarous of the three, as program behaviour is often undefined
-when freed values are read; in many language implementations undefined behavious means that the
+\egn{use-after-free} is the most hazardous of the three, as program behaviour is often undefined
+when freed values are read; in many language implementations undefined behaviour means that the
 entire program is illegal, and one cannot assume anything about its behaviour (see
 \cref{sec:background-pl}). The consequence of \egn{use-after-free} usually ranges from reading
 values that are unchanged from the time the block was freed, to mutation of memory that has been
@@ -74,7 +74,7 @@ may lead to these hazards.
 \egn{double-free} is technically not a memory hazard, as the operating system can check for the
 validity of pointers that are freed, although this is often not done in practice. It is not clear
 whether this is due to performance penalties of checking, or if it is primarily a legacy
-bevhaviour; POSIXs definition of \code{free} states that it is undefined behaviour to pass a
+behaviour; POSIXs definition of \code{free} states that it is undefined behaviour to pass a
 non-allocated pointer to \code{free}\cite{posix}.
 
 We aim to show that CMR guarantees that neither of the three memory hazards are possible.
@@ -99,18 +99,18 @@ solution, having ``solved'' single threaded memory management turns out to be of
 
 We divide up $A$ into two disjoint parts: \emph{owned} and \emph{shared} memory.  Owned memory is
 all memory which management is already handled by some system, like Rusts ownership model or the
-smart pointers of C++. Shared memory is the memory in which the structures that is not modeled well
+smart pointers of C++. Shared memory is the memory in which the structures that is not modelled well
 by other constructs live, like the nodes in a linked list.
 
-A key idea to recognize is that despite data being in Shared memory, they might themselves own data
+A key idea to recognise is that despite data being in Shared memory, they might themselves own data
 that is in Owned memory, like the binary tree in \cref{fig:rust-shared-mem}. The destruction of a
-list node containing the binary tree will utilize the system for owned memory, and make sure that
+list node containing the binary tree will utilise the system for owned memory, and make sure that
 the binary tree is cleaned up properly. It does not matter if the list node itself resided in owned
-or shared memory.  With this distiction we can reduce our problem space significantly, as we only
+or shared memory.  With this distinction we can reduce our problem space significantly, as we only
 have to worry about the small subset of $A$ that is shared memory.  Note that it is also possible
 to have the data types that are referenced from shared memory but stored in owned memory, like the
-pointer poining to \code{0xcafe} in \cref{fig:rust-shared-mem}.  This includes pointers on a stack
-frame, but might also include a entry in a hashmap. It is these pointers that CMR aims to control.
+pointer pointing to \code{0xcafe} in \cref{fig:rust-shared-mem}.  This includes pointers on a stack
+frame, but might also include a entry in a hash map. It is these pointers that CMR aims to control.
 
 
 \section{Overview\label{sec:cmr-overview}}
@@ -199,7 +199,7 @@ reads and writes for concurrent systems.
 
 \begin{definition}[\egn{NullablePtr}\label{def:nullable-ptr}]
   \emph{NullablePtr} is an immutable pointer that may be \nullptr. It is obtained through a Guard.
-  When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable thoughout the
+  When a NullablePtr $p$ is obtained from a Guard $g$, $g$ is immutable throughout the
   lifetime\footnote{We use the same meaning of lifetime as Rust (\cref{sec:rust-lifetimes})}
   of $p$.
 \end{definition}
@@ -230,7 +230,7 @@ It can also copy the value of another Guard with \emph{copy-guard}.
 General usage of \egn{Guard} is to construct the number of \egn{Guard}s one needs for some operation.
 These \egn{Guard}s are then used to load \egn{Atomic}s into.
 
-Atomic is a regular atomic pointer variable, supporing operations such as \emph{store}, and
+Atomic is a regular atomic pointer variable, supporting operations such as \emph{store}, and
 \emph{compare-and-swap}.
 \begin{equation}\label{eq:atomic-store}
   \proc{Store}\typeof{} (\id{Atomic}, \id{NullablePtr}) \to ()

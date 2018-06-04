@@ -12,19 +12,19 @@ We start this chapter by implementing the primitive types and operations from
 \section{Data}
 
 In order to better understand how CMR is laid out, we start out by looking at the data.
-\todo{flowcharts fred brooks}
+\todo{flowcharts Fred brooks}
 
 Allocated addresses are stored in a global \code{HashSet}, \code{ALLOCS}, which uses a \code{Mutex}
-for thread synchronization. Only addresses in \code{ALLOCS} are subject for reclamation.
+for thread synchronisation. Only addresses in \code{ALLOCS} are subject for reclamation.
 
 
 Thread also stores data in \gls{tls}. Each thread maintains a \code{Vec} of pointers to their
 \code{Guard}s, such that collecting all guards is just a matter of iterating through the
-\code{Vec}, and following the pointer. Since the data is thread local, no synchronization is needed
+\code{Vec}, and following the pointer. Since the data is thread local, no synchronisation is needed
 when operating on the \code{Vec}, which makes updates cheap.
 
 One caveat of CMR is that new threads needs to register themselves before using the system. This is
-done through \code{cmr::register_thread()}. This initializes thread local data, and pushes a
+done through \code{cmr::register_thread()}. This initialises thread local data, and pushes a
 thread handle used in \cref{sec:impl-snapshot}.
 
 
@@ -66,7 +66,7 @@ Note that by using \code{guard!}, the caller only obtains a \code{\&mut Guard<T>
 \code{Atomic} is mainly a wrapper around Rusts \code{AtomicPtr}, although the internals differ
 slightly. CMR defines its own type so that we can control the return types of certain functions.
 \cref{lst:def-atomic} shows the definition of the \code{struct}, as well as \code{cas}, the
-compare-and-swap operation, in which we utilize some Traits from the Rust standard library to
+compare-and-swap operation, in which we utilise some Traits from the Rust standard library to
 convert between types.  Implementation of remaining methods are straight forward.
 
 \input{listings/atomic}
@@ -76,7 +76,7 @@ convert between types.  Implementation of remaining methods are straight forward
 
 \code{NullablePtr} is used as the canonical pointer type in CMR, and all pointer like types are
 converted to \code{NullablePtr} using the \code{From} and \code{Into} traits from the Rust standard
-library, which handles coversion between types. For instance, we implement \code{From<*const T> for
+library, which handles conversion between types. For instance, we implement \code{From<*const T> for
 NullablePtr<T>}. This way we can write functions that are generic over all types of pointers, so
 that the user of CMR does not have to handle these conversions themselves.
 
@@ -107,7 +107,7 @@ impl<'a, T> NullablePtr<'a, T> {
 This is done through the \code{Deref} trait, which handles the \code{*} in Rust. Due to auto-deref,
 we can now use \code{\&Ptr<T>} in place of a \code{\&T}. The definition of \code{Ptr}, a new of its
 methods, and its \code{Deref} implementation is shown in \cref{lst:def-ptr}. Node that both
-\code{new} and \code{get_mut} are \code{unsafe} methods; \code{new} because we cann't guarantee
+\code{new} and \code{get_mut} are \code{unsafe} methods; \code{new} because we can not guarantee
 that the address passed is valid, and \code{get_mut} because the data may be aliased.
 
 \begin{figure}[ht]
@@ -131,7 +131,7 @@ impl<'a, T> Deref for Ptr<'a, T> {
 
 \subsubsection{Tagging}
 
-By having one canonnical pointer type, we can define functions that are generic over all types
+By having one canonical pointer type, we can define functions that are generic over all types
 that supports conversion from and/or to \code{NullablePtr}. This is used in the functions for
 pointer tagging, as well as the \code{cas} in \cref{lst:def-atomic} (the types \code{A} and
 \code{B}). \cref{lst:tagging} shows some of the free functions for pointer tags that are generic
@@ -141,7 +141,7 @@ over different pointer types.
 \input{listings/tagging}
 \end{figure}
 
-\code{ones(k)} returns the bitmask with the \code{k} lower bits set, and \code{TAG_BITS} is a
+\code{ones(k)} returns the bit mask with the \code{k} lower bits set, and \code{TAG_BITS} is a
 predefined number of bits allowed to use for tagging for any pointer. We convert from \code{P} to
 \code{NullablePtr} with \code{.into()} \coderef{TA2}.  In \code{with_tag} \coderef{TA5} we need
 to use \code{TryFrom}, which is a conversion trait that may fail. In CMR \code{Ptr<T>} implements
@@ -154,7 +154,7 @@ to \code{P}, even though the conversion is not always possible in general.
 
 \section{Snapshot\label{sec:impl-snapshot}}
 
-For obtaining a snapshot of the process memory CMR utilizses a operating system features offered
+For obtaining a snapshot of the process memory CMR utilises a operating system features offered
 by POSIX compliant systems: \emph{forking}.
 Calling \code{fork()} makes a copy of the current process, called the \emph{child process}.
 The return value of \code{fork()} determined whether we are in the child or parent process.
@@ -185,17 +185,17 @@ fn signal_threads_except_self() -> usize {
 Using \gls{pthreads} signals we register a signal handler for the \code{SIGUSR1} signal with the
 \code{sigaction} call, and the reclaiming thread signals all threads with \code{pthread_sigqueue}.
 This is done through the Rust library \code{libc}, which provides Rust bindings to the C standard
-library. The procedure for signaling all registered threads is shown in
-\cref{lst:thread-signaling}. Here we actually do two things at once: in addition to signaling the
+library. The procedure for signalling all registered threads is shown in
+\cref{lst:thread-signalling}. Here we actually do two things at once: in addition to signalling the
 threads, we remove the thread handlers that we fail to signal. The procedure returns the number of
-threads we successfully signaled, so the caller knows how many threads to expect being in the
+threads we successfully signalled, so the caller knows how many threads to expect being in the
 signal handler. Pseudo code for the signal handler is shown in \cref{lst:signal-handler}.
 
 \begin{figure}[ht]
   \begin{lstlisting}[
     style=Rust,
     numbers=left,
-    numberstyle=\color{gray}\ttfamily{}SH,
+    numberstyle=\color{grey}\ttfamily{}SH,
     caption=Pseudocode for the signal handler used by CMR,
     label=lst:signal-handler,
   ]
@@ -210,15 +210,15 @@ sh_enter_counter.fetch_sub(1)       (*\label{c:sh-leave}*)
 
 
 We use \code{sh_enter_counter} to keep track of how many threads are present in the signal handler;
-the reclaimer knows how many threads it succesfully signaled, so it knows how many threads to
+the reclaiming thread knows how many threads it successfully signalled, so it knows how many threads to
 expect. \coderef{SH\ref*{c:sh-reg}} registers a threads presence, in addition to giving each thread
-a unique index in the range $[0, n)$, where $n$ is the number of threads signaled. This is used
+a unique index in the range $[0, n)$, where $n$ is the number of threads signalled. This is used
 in~\coderef{SH\ref*{c:sh-write}}, where each thread writes out their guards and allocations into
 the global vector \code{thread_datas}. We then register that we have written our
-data~\coderef{SH\ref*{c:sh-done}}, and wait for the reclaimer to unfreeze
+data~\coderef{SH\ref*{c:sh-done}}, and wait for the reclaiming thread to unfreeze
 us~\coderef{SH\ref*{c:sh-wait}}. At last we register that we have seen that we are done
 \coderef{SH\ref*{c:sh-leave}}, so that no thread risk being stuck in the next iteration of the
-reclaming procedure, waiting again on the \code{sh_frozen} flag.
+reclaiming procedure, waiting again on the \code{sh_frozen} flag.
 
 
 
@@ -267,15 +267,15 @@ fn mark_and_sweep(mut cursor: Cursor<&mut [u8]>, roots: Vec<TraitObject>) -> usi
 \subsection{Trace}
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
-types can be arbitrarily large. In addition, memory might not be initialized, and false positives
-might occur if we are not careful. Instead of scanning through the memory block linearily, CMR
+types can be arbitrarily large. In addition, memory might not be initialised, and false positives
+might occur if we are not careful. Instead of scanning through the memory block linearly, CMR
 defines the Trait called \code{Trace}, which all data types that is in shared memory must
 implement.  A type implementing \code{Trace} knows a bound on how many shared memory pointers it
 contains, and can write these out to a buffer. For instance, a \code{Node} in a single linked list
 contains only one pointer, namely its next pointer, which is trivial to write out.
 
 The implementation of this uses \emph{Trait Objects} (\cref{sec:trait-objects}), which involves
-dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
+dynamic dispatch. This solution is potentially expensive, as it may involve cache misses in the
 I-cache, although the number of misses is limited by the difference in data types in shared memory,
 which normally is smaller than in Rust memory.
 
@@ -292,7 +292,7 @@ also may contain pointers to shared memory.
 \code{Node} is a standard node from a linked list, containing \code{data}, and a \code{next}
 pointer. The implementation of \code{write} loads the \code{next} pointer~\coderef{T12}, which is
 an \code{unsafe} operation, as there is no \code{Guard} protecting the pointer. This is safe in the
-context of the reclaimer since the memory will be freed at earliest when we finish the reachability
+context of the reclaiming thread since the memory will be freed at earliest when we finish the reachability
 analysis, and at that point we no longer read the memory. The implementation only writes out the
 pointer if it is non-null. While this is not required for CMR to function, it simplifies the logic
 in the reachability analysis.
