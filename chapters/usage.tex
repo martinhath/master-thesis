@@ -9,6 +9,10 @@ the performance characteristics and pitfalls for the results obtained in \cref{c
 We have implemented four data structures: a stack, a queue, a list, and a hashmap, and the
 implementations will be considered in sequence.
 
+
+\clearpage
+
+
 \section{Lock-free Stack\label{sec:usage-stack}}
 
 \begin{figure}[b]
@@ -113,7 +117,7 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 
 
 
-\section{Lock-free List}
+\section{Lock-free List\label{sec:usage-list}}
 
 \fixme{07/05 22:22 insert more stuf here?}
 Michael introduced a concurrent List in~\cite{harris2001pragmatic}. The list is similar to the
@@ -153,23 +157,24 @@ and C, since it reads the tag of B, realizing that it was deleted.
 
 Many of the most interesting operations on the List involves iterating through the list. Due to the
 ownership and lifetime rules that Rust imposes, it may be tricky to implement typical iteration
-and juggle pointers around. For this reason, the API uses an indirection for iterating through the
-list: \code{Entry}.
+since due to the pointer juggeling and the lifetime issues that arises. For this reason, the API
+uses an abstraction for iterating through the list: \code{Entry}.
 
 \begin{figure}[ht]
 \input{listings/list-entry}
 \end{figure}
 
 An \code{Entry} is like a pointer into the list, which can \code{step()} to the next node, get a
-pointer to the \code{current()} node, \code{remove} the current node, insert a new node between
-(\code{insert_between}) two nodes, and find nodes which data satisfies arbitrary closures
-\code{Fn(T) -> bool}.  Since there is some overhead in declaring a \code{Guard}, \code{Entry}
-contains two references to \code{Guard}s rather than the \code{Guard}s themselves. This makes
-construting a \code{Guard} nearly free.  Another implication of this is that \code{Entry} is
-movable in memory (as \code{Guard} is not).
+pointer to the \code{current()} node, \code{remove} the current node, \code{insert_between} two
+nodes, and find nodes which data satisfies arbitrary closures \code{Fn(T) -> bool}.  Since there is
+some overhead in declaring a \code{Guard}, \code{Entry} contains references to \code{Guard}s rather
+than the \code{Guard}s themselves. This makes construting a \code{Guard} nearly free.  Another
+implication of this is that \code{Entry} is movable in memory (as \code{Guard} is not), which can
+be practical.
 
 This indirection simplifies many operations, and we barely need to deal with lifetime and ownership
-issues, although it almost requires \gls{nll} (\cref{sec:nll}) to use.
+issues, although it almost requires \gls{nll} (\cref{sec:nll}) to use, since we still need to
+handle the pointer management inside the \code{Entry}s methods.
 
 \begin{figure}[ht]
 \input{listings/list-foreach}
@@ -181,29 +186,46 @@ issues, although it almost requires \gls{nll} (\cref{sec:nll}) to use.
 
 
 
-\section{Lock-free Hash Table}
+\section{Lock-free Hash Table\label{sec:usage-hashmap}}
 
-The hash table is a versatile and popular data structure. It is widely used due to its constant time
-operations, including queries, insertions, and removals.
+The hash table is a versatile and popular data structure, and is widely used due to its fast
+operations, which includes queries, insertions, and removals. The hash table is also a more
+interesting data structure to look at from a concurrency perspective, as it has the potential to
+scale much better, since not all operations is on the same memory; in comparison a queue only has
+two locations, namely the front and back, which are of interest. Multiple inserts may be done
+concurrently in a hash table without touching the same memory at all; this greatly increases the
+gain from having multiple threads.
 
-Lock-free hash tables are interesting for the same reasons. Despite the interest, designing a
-concurrent hash table turns out to be a difficult problem. Blabl, resize
-Most hash tables are split up in \emph{buckets}, such that the hash of the elements within a bucket
-share some property (eg.\ a common prefix). Increasing the number of buckets is knows as
-\emph{resizing}, which makes sure that the number of elements in each bucket is limited; many
-algorithms and hash functions give bounds on the number of elements in each bucket.
+Lock-free hash tables are interesting for the same reasons as regular hash tables. Despite the
+interest, designing a concurrent hash table turns out to be a difficult problem.
+Usually the problems revolve around \emph{resizing} the hash table. A common approach to
+implementing hash tables is to have an array of \emph{buckets} in which the elements resides. Keys
+which hashes share some property (eg\. a common prefix or suffix) may be put in the same bucket.
+When the \emph{load factor} --- the ratio of elements in the table to the number of buckets --- is
+too large, we increase the number of buckets: we resize the hash table. The hash table implemented
+does not deal with this problem: we have a fixed number of ``buckets'', although it is possible to
+extend the implementation to better handle large load factors by recursively constructing a new
+sentinel array to handle the next $n$ bits of the hash.
+The size of the array in the implemented hash table is $2^{20} = 1048576$.
+
 
 \subsection{Split-Ordered List}
 
-We start by describing the \emph{Split-Ordered List}. Split-Ordered Lists were introduced
-in~\cite{shalev2006split}. The nodes in the list is ordered by the \emph{reverse hash} of the value
-in the node. In addition, the list contains \emph{sentinel nodes}, which are the beginnings of the
-buckets in the hash table. By making the number of buckets $b=2\sp{k}$ we can double $b$ when the
-load factor is too high, and insert one more sentinel node between each of the nodes already
-present, effectively differentiating between one new bit of the reverse hash.
+We start by describing the \emph{Split-Ordered List}, which were introduced
+in~\cite{shalev2006split}.  The list is a regular linked list where the nodes are ordered by the
+\emph{reverse hash} of the value in the node. The list also contains \emph{sentinel nodes}, nodes
+without meaningful data, but which marks the beginnings of a bucket in the hash table.  By making
+the number of buckets $b=2\sp{k}$ we can double $b$ when the load factor is too high, and insert
+one more sentinel node between each of the nodes already present; this effectively differentiates
+between \emph{one} new bit of the reverse hash.  See \cref{fig:reverse-bits} for an illustration of
+the numbers $[0,15]$ ordered by their bit-reverse. Note that when adding numbers up to the next
+power of two no two inserted numbers are consecutive; they spread nicely.
 
-\subsection{Hash Table}
-\fixme{07/05 17:00 Clean up these sections. Maybe have only one section?}
+\begin{figure}[ht]
+  \centering
+  \input{figures/bit-reversal}
+  \caption{The numbers $[0, 15]$ ordered by their bit-reversal\label{fig:reverse-bits}}
+\end{figure}
 
 Using the Split-Ordered List we can implement a concurrent hash table by having an array of
 pointers to sentinel nodes, and a ``size'' of the bucket array. If a sentinel pointer is
@@ -211,9 +233,9 @@ pointers to sentinel nodes, and a ``size'' of the bucket array. If a sentinel po
 first find the sentinel node that precedes the node we want to insert (the \emph{parent}); this is
 known, since we know the ordering of the nodes in the list --- the reverse hash. However, due to
 the resizing method, the parent may not have been inserted yet. If not, we can simply recurse on
-the insertion method, and insert the parent first. Then, we simply iterate through the list, and
-find the place in which our new node should be. Assuming a small load factor, this is a fast
-operation.
+the insertion method, and insert the parent first. Then we jump to the preceding sentinel node, and
+iterate through the list, finding the place in which our new node should be. Assuming a small load
+factor, this is a fast operation.
 
 \begin{figure}[ht]
 \centering
@@ -225,14 +247,17 @@ parenthesis.\label{fig:split-order-list}}
 \cref{fig:split-order-list} shows the split-ordered list with a table size of $4$. The nodes in the
 list are ordered by the reverse of their hash (shown in parenthesis). Given a node \code{n}, we
 find the sentinel node that should preceed it in the list by taking \code{hash(n) \% table_size}.
-Note that this is not the reverse hash. For instance,
-inserting a node where \code{hash(n) == 7}, we look in bucket \code{7 \% 4 == 3}, and iterate from
-sentinel node 3.
-Inserting a node where \code{hash(n) == 10}, we would get \code{bucket = 2}, which is \code{null},
-so we need to insert the sentinel node first.
+Note that this is not the reverse hash. For instance, inserting a node where \code{hash(n) == 7},
+we look in bucket \code{7 \% 4 == 3}, and iterate from sentinel node 3. It is only in the iteration
+where we insert our new node that we use the reverse hash.  Inserting a node where \code{hash(n) ==
+10}, we would get \code{bucket == 2}, which is \code{null}, so we need to insert the sentinel node
+first. This sentinel node would be inserted in between the \code{h} and \code{e} node, since
+sentinel nodes preceed data nodes with the same reverse hash.
 
-
-We look at $n$ operations on the hash table: \code{contains}, \code{insert}, $and\ maybe\ more$.
+Next we look at the most important operations in the hash table: \code{contains} and \code{insert}.
+Removals are similar to in the List; we remove the data node from the list. Sentinel nodes are
+never removed. While this increases the memory usage of hash tables, it does not reduce the
+performance of lookups since the number of sentinel nodes we need to look at does not change.
 
 \subsection{Contains}
 
@@ -251,7 +276,9 @@ search succeeded, so we return \code{true}, and \code{false} otherwise.
 \subsection{Insert}
 \code{HashMap::insert} is more complicated, as there are multiple things that can go wrong, and
 that some operations require cleanup. \cref{lst:hashmap-insert} shows the implementation of
-\code{insert}.
+\code{insert}. Due to the complexity of the method, we have omitted certain sections of the code.
+The omitted code is either similar operations to previously shown methods, or explained in the
+text.
 
 \input{listings/hashmap-insert}
 
@@ -265,27 +292,14 @@ old nodes so that other threads will see the most recently updated node first. T
 operation has three cases:
 \begin{enumerate*}[1) ]
   \item we fail with \code{Empty} which means we got to the end of the list, and is handled by
-    inserting the new node at the end of the list  \coderef{HI14},
-  \item we fail with another failure case and restart \coderef{HI19}, and
-  \item we succeed and actually insert our new node into the list \coderef{HI20}, where we, again,
+    inserting the new node at the end of the list  \coderef{HI13},
+  \item we fail with another failure case and restart \coderef{HI15}, and
+  \item we succeed and actually insert our new node into the list \coderef{HI16}, where we, again,
     restart upon failure.
 \end{enumerate*}
 
 After insertion we must check for other nodes with the same key, since there should only be one
-entry for any given key in the map \coderef{HI21}. This is done by making a new \code{Entry} with
+entry for any given key in the map \coderef{HI17}. This is done by making a new \code{Entry} with
 the new node, \code{step}ping once, so that the \code{current} node is not our new node, and
 \code{delete()} any node that has the right key.  When we hit a node which hash is more than our
-own, we are done \coderef{HI24}.  Since the map is generic over the key type \code{K}, comparing
-the type for equality might be expensive. Therefore, we check the hash before checking the key for
-equality \coderef{HI25}.
-
-\code{HashMap::insert} contains a single \code{unsafe} block: \coderef{HI14}. This operation is
-\code{unsafe} since we are mutating \code{new_node}, which potentially could cause a race condition
-if the node was concurrently read by another thread. However, we know that it is not read by any
-other thread, since we have not been succesfull yet in inserting it into the list.
-
-
-
-
-\section{Crossbeam Integration}
-\lorem{}
+own, we are done.

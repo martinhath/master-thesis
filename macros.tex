@@ -15,7 +15,13 @@
 \newcommand{\lorem}{{\color{black!60}\blindtext{}}}
 
 % name aliases
-\newcommand{\gribb}{Gribb}
+\newcommand{\gribb}{{\color{red}Gribb}}
+\newcommand{\daslab}{{\color{red}DasLab}}
+\newcommand{\scaleway}{{\color{red}Scaleway}}
+\newcommand{\mitserver}{{\color{red}Mit}}
+
+
+\renewcommand{\mkbegdispquote}[2]{\itshape}%
 
 \tikzset{auto}
 \tikzset{lnode/.style={node distance=2.5cm, rectangle split, rectangle
@@ -135,21 +141,5 @@ corners=0.02cm, font=\footnotesize}}
   \begin{subfigure}{0.49\textwidth}
     \includegraphics[width=\textwidth]{graphs/#1-hm-80-10-10}
     \caption{\code{HashMap} with 80\% contains, 10\% insert, 10\% remove}
-  \end{subfigure}
-}
-
-\newcommand{\queuegrid}[1]{%
-  \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=\textwidth]{graphs/#1-queue-push}
-    \caption{\code{Queue::push}}
-  \end{subfigure}
-  \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=\textwidth]{graphs/#1-queue-pop}
-    \caption{\code{Queue::pop}}
-  \end{subfigure}
-
-  \begin{subfigure}{0.49\textwidth}
-    \includegraphics[width=\textwidth]{graphs/#1-queue-50-50}
-    \caption{\code{Queue} with 50\% push, 50\% pop}
   \end{subfigure}
 }

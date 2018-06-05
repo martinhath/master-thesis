@@ -1,10 +1,15 @@
-\documentclass[b5paper, twoside, openright]{report}
+\documentclass[b5paper, twoside, openright]{extreport}
+
 % \documentclass[b6paper]{report}
 % \usepackage[lmargin=25mm, rmargin=25mm, tmargin=27mm, bmargin=30mm]{geometry}
 \usepackage[tmargin=27mm, bmargin=30mm]{geometry}
 
 % \usepackage[a4,center,frame]{crop}
 
+\usepackage{epigraph}
+\usepackage{siunitx}
+\usepackage{csquotes}
+\usepackage{booktabs}
 \usepackage[T1]{fontenc}
 \usepackage[toc]{appendix}
 \usepackage{amsmath}
@@ -53,7 +58,7 @@
   {\Huge}
 
 \titleformat{\chapter}[display]
-  {\center}
+  {\center\vspace{2cm}}
   {\large\scshape{\chaptertitlename} \thechapter}
   {0ex}
   {\huge}
@@ -107,11 +112,15 @@
   {\large \today\\}
 \end{titlepage}
 
+\null\clearpage
+
 \input{macros.tex}
 
 \input{chapters/abstract}
+\null\clearpage
 
 \input{chapters/acknowledgements}
+\null\clearpage
 
 
 \tableofcontents%

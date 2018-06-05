@@ -1,0 +1,62 @@
+\begin{tikzpicture}[node distance=6mm]
+  \node (n0)                   {$0$};
+  \node (n1)   [right of=n0]   {$1$};
+  \node (n2)   [right of=n1]   {$2$};
+  \node (n3)   [right of=n2]   {$3$};
+  \node (n4)   [right of=n3]   {$4$};
+  \node (n5)   [right of=n4]   {$5$};
+  \node (n6)   [right of=n5]   {$6$};
+  \node (n7)   [right of=n6]   {$7$};
+  \node (n8)   [right of=n7]   {\color{theme2}$8$};
+  \node (n9)   [right of=n8]   {\color{theme2}$9$};
+  \node (n10)  [right of=n9]   {\color{theme2}$10$};
+  \node (n11)  [right of=n10]  {\color{theme2}$11$};
+  \node (n12)  [right of=n11]  {\color{theme2}$12$};
+  \node (n13)  [right of=n12]  {\color{theme2}$13$};
+  \node (n14)  [right of=n13]  {\color{theme2}$14$};
+  \node (n15)  [right of=n14]  {\color{theme2}$15$};
+
+  \node (r0)   [below of=n0,yshift=-3cm] {$0$};
+  \node (r8)   [right of=r0]  {\color{theme2}$8$};
+  \node (r4)   [right of=r8]  {$4$};
+  \node (r12)  [right of=r4]  {\color{theme2}$12$};
+  \node (r2)   [right of=r12] {$2$};
+  \node (r10)  [right of=r2]  {\color{theme2}$10$};
+  \node (r6)   [right of=r10] {$6$};
+  \node (r14)  [right of=r6]  {\color{theme2}$14$};
+  \node (r1)   [right of=r14] {$1$};
+  \node (r9)   [right of=r1]  {\color{theme2}$9$};
+  \node (r5)   [right of=r9]  {$5$};
+  \node (r13)  [right of=r5]  {\color{theme2}$13$};
+  \node (r3)   [right of=r13] {$3$};
+  \node (r11)  [right of=r3]  {\color{theme2}$11$};
+  \node (r7)   [right of=r11] {$7$};
+  \node (r15)  [right of=r7]  {\color{theme2}$15$};
+
+  \draw[-latex]  (n0) -- (r0);
+
+  \draw[-latex]  (n1) -- ($ (n1)!0.2!(r8)$) -- ($ (n8)!0.55! (r1)$) --  (r1);
+  \draw[-latex]  (n8) -- ($ (n8)!0.2!(r1)$) -- ($ (n1)!0.55! (r8)$) --  (r8);
+
+  \draw[-latex]  (n2) -- ($ (n2)!0.7!(r4)$) -- ($ (n4)!0.8! (r2)$) --  (r2);
+  \draw[-latex]  (n4) -- ($ (n4)!0.7!(r2)$) -- ($ (n2)!0.8! (r4)$) --  (r4);
+
+  \draw[-latex]   (n3) -- ($ (n3)!0.15!(r12)$) -- ($(n12)!0.6! (r3)$) --  (r3);
+  \draw[-latex]  (n12) -- ($(n12)!0.15! (r3)$) -- ($ (n3)!0.6!(r12)$) --  (r12);
+
+  \draw[-latex]   (n5) -- ($ (n5)!0.55!(r10)$) -- ($(n10)!0.8! (r5)$) --  (r5);
+  \draw[-latex]  (n10) -- ($(n10)!0.55! (r5)$) -- ($ (n5)!0.8!(r10)$) --  (r10);
+
+  \draw[-latex]  (n6) -- (r6);
+
+  \draw[-latex]   (n7) -- ($ (n7)!0.2!(r14)$) -- ($(n14)!0.55! (r7)$) --  (r7);
+  \draw[-latex]  (n14) -- ($(n14)!0.2! (r7)$) -- ($ (n7)!0.55!(r14)$) --  (r14);
+
+  \draw[-latex]  (n9) -- (r9);
+
+  \draw[-latex]  (n11) -- ($(n11)!0.7!(r13)$) -- ($(n13)!0.8!(r11)$) --  (r11);
+  \draw[-latex]  (n13) -- ($(n13)!0.7!(r11)$) -- ($(n11)!0.8!(r13)$) --  (r13);
+
+  \draw[-latex] (n15) -- (r15);
+
+\end{tikzpicture}

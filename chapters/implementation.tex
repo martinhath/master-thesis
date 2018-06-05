@@ -1,45 +1,63 @@
 \chapter{Implementation\label{ch:implementation}}
 
+\epigraph{Talk is cheap. Show me the code.}{\textit{Linus Torvalds}}
+
 In this chapter we look at the Rust implementation of CMR\@. The source code is openly available
 on GitHub under \todo{license}{\color{red}some license}\cite{cmr-github}.
 
-We start this chapter by implementing the primitive types and operations from
-\cref{sec:cmr-primitives}.
+This chapter is organized as follows: \cref{sec:impl-data} discusses briefly the most important
+data that CMR defines, both global and thread local;
+\cref{sec:impl-primitives} shows the implementation of the primitives from
+\cref{sec:cmr-primitives}, and argues for their correctness by the definitions in the previous
+chapter;
+\cref{sec:impl-snapshot} explains how memory snapshotting, an important part of CMR, is
+implemented;
+\cref{sec:impl-reachability} describes the reacability analysis including important details of the
+Rust type system;
+we finish the chapter with \cref{sec:impl-complications} where we highlight a few of the
+complications that we encoutered during the implementation of CMR.
 
-
-
+\clearpage
 
 \section{Data\label{sec:impl-data}}
 
 In order to better understand how CMR is laid out, we start out by looking at the data.
-\todo{flowcharts Fred brooks}
+As Fred Brooks\cite{brooks1995mythical} said:
+\begin{displayquote}
+Show me your flowcharts and conceal your tables, and I shall continue to be mystified. Show me your
+  tables, and I won't usually need your flowcharts; they'll be obvious.
+\end{displayquote}
 
 Allocated addresses are stored in a global \code{HashSet}, \code{ALLOCS}, which uses a \code{Mutex}
 for thread synchronisation. Only addresses in \code{ALLOCS} are subject for reclamation.
-
+\cref{sec:impl-trace} explains more about the way allocations are stored in order to preserve type
+information.
 
 Thread also stores data in \gls{tls}. Each thread maintains a \code{Vec} of pointers to their
 \code{Guard}s, such that collecting all guards is just a matter of iterating through the
 \code{Vec}, and following the pointer. Since the data is thread local, no synchronisation is needed
 when operating on the \code{Vec}, which makes updates cheap.
+In addition all threads store the allocations they have done since the last reclamation pass. See
+\cref{sec:impl-signalvec}
 
 One caveat of CMR is that new threads needs to register themselves before using the system. This is
 done through \code{cmr::register_thread()}. This initialises thread local data, and pushes a
-thread handle used in \cref{sec:impl-snapshot}.
+thread handle used in \cref{sec:impl-snapshot}. See \cref{sec:impl-thread-registration} for
+information about thread registration.
 
 
 
-\section{Primitives}
+\section{Primitives\label{sec:impl-primitives}}
 
 Blabla
 
 \subsubsection{Guard}
 
 The \code{Guard} is implemented as a single word, in addition to an empty type (the
-\code{PhantomData}) as Rust \emph{requires} generic types to be used. \code{Guard}s aren't normally
-constructed directly (\fixme{non movable types somewhere}), but rather declared with the
-\code{guard!} macro, which constructs it and calls \code{Guard::register}.
-An excerpt of the definitions of \code{Guard} is shown in \cref{lst:guard-impl}.
+\code{PhantomData}) as Rust requires generic types to be used. \code{Guard}s aren't normally
+constructed directly, but rather declared with the \code{guard!} macro, which constructs it and
+calls \code{Guard::register}.  An excerpt of the definitions of \code{Guard} is shown in
+\cref{lst:guard-impl}.
 
 \begin{figure}
 \input{listings/guard}
@@ -313,7 +331,7 @@ reclaiming procedure, waiting again on the \code{sh_frozen} flag.
 
 
 
-\section{Reachability}
+\section{Reachability\label{sec:impl-reachability}}
 
 Reachability analysis is a straight forward implementation of the \proc{Find-Reachable} procedure
 from \cref{sec:cmr-overview}, and is shown in \cref{lst:impl-find-reachable}. We maintain one
@@ -355,7 +373,7 @@ fn mark_and_sweep(mut cursor: Cursor<&mut [u8]>, roots: Vec<TraitObject>) -> usi
 \end{figure}
 
 
-\subsection{Trace}
+\subsection{Trace\label{sec:impl-trace}}
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
 types can be arbitrarily large. In addition, memory might not be initialised, and false positives
@@ -416,12 +434,12 @@ The main difference between this and \code{Trace} is that CMR requires all types
 
 
 
-\section{Complications}
+\section{Complications\label{sec:impl-complications}}
 
 A number of implementation complications arised while deleveopting CMR\@. We look at a few of them
 here.
 
-\subsection{Locks in libc\label{sec:alloc-lock}}
+\subsection{Allocation Lock\label{sec:alloc-lock}}
 
 In order to protect programmers from deadlocks, POSIX defines a subset of functions as
 \emph{async-signal safe}, meaning they are safe to call from a signal handler. Functions that are
@@ -437,14 +455,20 @@ oblivious to CMR, from allocating.
 
 This problem is not solved properly by CMR, but its effects are mitigated by wrapping the general
 allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be aquired by
-the reclamating thread (this is why we have~\coderef{R3} in \cref{lst:reclaimer}). This
-prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads} internally for thread
-handling on Linux, which allocates internally, both in \code{spawn} and \code{join}. The former may
-be circumvented by aquiring the allocation lock before calling it, but this is no solution for the
-latter, since the thread may depend on allocating before exiting.
+the reclamating thread (this is why we have~\coderef{R3} in \cref{lst:reclaimer}).
+In order to be more thread friendly we do not grab the global lock every time we allocate; instead
+each thread flips a bit when they allocate, to signal to other threads that they might be holding
+some internal lock. Upon exit they flip the bit back. When some other thread wants to make sure
+that no thread is holding the lock, it flips a flag, and waits for all threads to have their bit
+set to zero. This is effectively a read-write lock.
+
+The locking scheme prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads}
+internally for thread handling on Linux, which allocates internally, both in \code{spawn} and
+\code{join}. The former may be circumvented by aquiring the allocation lock before calling it, but
+this is no solution for the latter, since the thread may depend on allocating before exiting.
 
 
-\subsection{SignalVec}
+\subsection{SignalVec\label{sec:impl-signalvec}}
 
 For performance reasons threads store their allocation in \gls{tls} in between reclamation passes
 in a \code{Vec}.  The allocations are later collected in the threads signal handler when some
@@ -461,7 +485,7 @@ last element, we do not risk overwriting any values. The \code{SignalVec} is spe
 to only work in the exact use case that CMR requires.
 
 
-\subsection{Thread Registration}
+\subsection{Thread Registration\label{sec:impl-thread-registration}}
 
 Thread startup and shutdown has shown to be a difficult problem to handle, especially when
 carefully managing when threads are allowed to allocate. Early attempts were made to automate this

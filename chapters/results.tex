@@ -1,10 +1,29 @@
 \chapter{Results\label{ch:results}}
 
+\epigraph{I pass with relief from the tossing sea of Cause and Theory to the firm ground of Result
+and Fact.} {\textit{Winston S. Churchill, The Story of the Malakand Field Force}}
+
+
+
 In this chapter we look at the expermental results of the system as a whole. In \cref{ch:res-ops}
 we look at the overhead of the operations done by CMR. In \cref{ch:res-ds} we look at the
 performance of the data structuers implemented, with and without the overehead CMR, and compare
 them to alternatives in the Rust ecosystem, like Crossbeam\cite{crossbeam} and data structures in
 the standard library wrapped in a \code{Mutex}.
+
+
+The benchmark suite is ran on three separate machines: one desktop machine \gribb{}, an ARM based
+cloud server \scaleway{} and a quad socket server \daslab{}.
+The three CPUs all have different indented usage and price range. It is therefore interesting to
+look at the performance on all three systems.
+
+
+The number of threads for the benchmark ranges from 1 to slightly above the number of hardware
+threads on the CPU the benchmark is ran on. It is expected that the performance evens out when the
+number of threads reaches the maximum number of hardware threads in all benchmarks.
+
+
+\clearpage
 
 \section{Operations of CMR\label{ch:res-ops}}
 
@@ -13,58 +32,79 @@ The operations that CMR provides that are most interesting to look at is allocat
 are the only ones that have any significant overhead. Atomic loads pointer manipulations are mainly
 tricks of the type system to ensure the safey of the operations, and has no run-time overhead.
 
-% TODO: actually do this (issue #1)
-It is also interesting to look at the overhead of \code{fork()} calls, as this is an important part
-of the way CMR works.
+
+\subsection{Primitives}
+
+We begin by looking at the performance of \code{Guard} construction and allocation.  The generated
+code from the \code{guard!} macro contains some initialization checks, which the compiler could not
+remove despite constructing multiple guards in a row. For this reason the \code{guards!} macro were
+written, which reduced the execution time by 20\% for 10 declarations.  We measure the time one
+\code{Guard} declaration takes, and the time for 10 \code{Guard}s to be declared using the
+\code{guards!} macro.  All measurements are amortized over 1000 runs as shown in
+\cref{lst:guard-bench}, but the reported numbers are per operation.
+
+\begin{figure}[ht]
+\begin{lstlisting}[style=Rust]
+#[bench]
+fn cmr_guard_1k(b: &mut Bencher) {
+    global_init();
+    let _t = ::test::test_init();
+    b.iter(|| for _ in 0..1000 { guard!(g);
+                                 let _: &mut Guard<u64> = g; }); }
+\end{lstlisting}
+  \caption{Benchmark for \code{Guard} construction.\label{lst:guard-bench}}
+\end{figure}
+
+The results for all machines are summarized in \cref{tb:ops-perf}.
+Note that a single \code{guard!} is faster than \code{guards!} per declaration. This can be
+attributed to that destruction of a \code{Guard} must find itself in the \code{Vec} of
+\code{Guard}s, so more \code{Guard}s take longer.
+
+\begin{table}[ht]
+  \centering
+  \caption{\label{tb:ops-perf}}
+\begin{tabular}{l r r r r}
+  Machine & \code{guard!} & \code{guards!} & \code{cmr::alloc} & \code{Box::new} \\
+  \toprule
+  \scaleway{} & 75 ns & {\color{red}104} ns & 335 ns & 185 ns \\
+  \gribb{}    & 13 ns &  13 ns &  45 ns &  28 ns \\
+  \mitserver{} & 28 ns & 30 ns & 73 ns & 50 ns \\
+\end{tabular}
+\end{table}
 
 
-The results are primarily from a \fixme{30/05 13:57 insert IST machine here}. We have also ran the
-full benchmark suite on other machines\fixme{30/05 13:58 consider this after getting IST results}.
-Interesting results are shown. The complete dataset of all results on all machines are listed in
-\cref{ap:results}
+\todo{Test stuff with and without jemalloc?}
+
+\todo{Measure \code{fork()} time}
+
 
 
 \section{Data Structures\label{ch:res-ds}}
 
-We look at all data structuers in the order that they were introduced in \cref{ch:usage}.
 
-\fixme{30/05 14:23 remove \\clearpages}
+As mentioned in \cref{ch:usage}, the stack and the queue both have operational bottlenecks;
+that is most operations contest the same memory locations, which causes poor scaling with more
+cores. In addition, since the list from \cref{sec:usage-list} is the primary building block for the
+hash table, we do not look at the performance of the list explicitly. Thus, the only remaining
+data structure to look at is the hash table. This is also the most interesting.
 
-\clearpage
-\subsection{Stack\label{sec:res-stack}}
+We compare the four hashmap variations:
+\begin{enumerate*}[1)]
+  \item the hashmap from \cref{sec:usage-hashmap} (\code{cmr})
+  \item the same hashmap, but with all operations of CMR to be no-ops (\code{cmr(noop)})
+  \item an external SkipList implementation from the Crossbeam project\cite{crossbeam-skiplist}
+    (\code{cb}) and
+  \item \code{std::HashMap} wrapped in a \code{Mutex} (\code{std}).
+\end{enumerate*}
 
-\begin{figure}[ht]
-  \centering
-  \queuegrid{gribb}
-  \caption{Queue performance on \gribb}
-\end{figure}
-
-
-
-\clearpage
-\subsection{Queue\label{sec:res-queue}}
-
-\begin{figure}[ht]
-  \centering
-  \queuegrid{gribb}
-  \caption{Queue performance on \gribb}
-\end{figure}
+The \code{HashMap} benchmarks consists of four operations: \code{insert}, \code{remove},
+\code{contains}, and a combination of the three: a 80/10/10 split of \code{contains},
+\code{inserts}, and \code{remove} respectively. This is shown experimentally to mirror real world
+\todo{cite !!}
+usage of hashmaps quite well, and is common in concurrent performance testing.
 
 
-
-\clearpage
-\subsection{List\label{sec:res-list}}
-
-\begin{figure}[ht]
-  \centering
-  \queuegrid{gribb}
-  \caption{Queue performance on \gribb}
-\end{figure}
-
-
-
-\clearpage
-\subsection{HashMap\label{sec:res-hm}}
+\subsection{\gribb}
 
 \begin{figure}[ht]
   \centering
@@ -72,5 +112,50 @@ We look at all data structuers in the order that they were introduced in \cref{c
   \caption{HashMap performance on \gribb}
 \end{figure}
 
-\section{Thirt Party Use}
-\lorem{}
+
+\clearpage
+\subsection{\scaleway}
+
+This machine has 32 threads divided over two sockets.
+
+
+In the \code{insert} benchmark we see a dip in throughput at 16 cores. This may be attributed to
+the number of threads being too high to run effectively on a single socket. However, if we
+calculate how many elements are inserted, we get $5M \times 16 = 80M$ elements; since the size of
+the pointer array is only $\approx 1M$,  we get a load factor of $\approx 80$, which means that
+inserts risk looking at 80 nodes before finding the correct place in the list to insert!
+In addition, the \code{remove} benchmark seems not to run into this problem. This suggests that it
+is in fact the capacity of the hash table that is the limiting factor, and not the cross-socket
+synchronization.
+
+\clearpage
+\begin{figure}[ht]
+  \centering
+  \hmgrid{scw}
+  \caption{HashMap performance on \scaleway}
+\end{figure}
+
+
+\clearpage
+\begin{figure}[ht]
+  \centering
+  \hmgrid{eecs-ath-16}
+  \caption{HashMap performance on \mitserver{}}
+\end{figure}
+
+The \code{HashMap} performance on the \mitserver{} quad socket is much more pessimistic than the
+previous graphs; the operational throughput on both \code{insert} and \code{remove} evens out
+already after 16 cores. This is probably because of the fact that only 20 threads are running on
+one socket, so that any shared memory loction that is modified by the \code{HashMap}s operations
+must be flushed to main memory. For us, this is the number of elements in the \code{HashMap}, which
+we need for resizing approproately.
+
+A back of the envelope calculation supports this claim: The CPU runs at $\SI{2400}{GHz}$, and with
+16 threads we manage about $4M$ \code{insert}s per second in total. This means that if we assume
+that all accesses to the \code{count} field happend sequentially, each access takes
+$\frac{\SI{2400}{GHz}}{4M} = 600$ cycles per operation. While this is a lot for a single memory
+access, it is not too far off from main memory access latencies, which are often around
+$\SI{100}{ns}$ \cite{memlatency}.
+
+Yet another observation which supports the claim is that \code{contains} seems unaffected by the
+NUMA effects, as it does not mutate the \code{HashMap} in any way.

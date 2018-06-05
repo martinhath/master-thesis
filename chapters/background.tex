@@ -1,7 +1,71 @@
 \chapter{Background}
 
+In this chapter we briefly sum up the most important backgroud material we depend on in this text.
+Parts of the material is covered in a standard computer science education, but we will summarize it
+nevertheless.
 
-\section{Garbage Collectors}
+\clearpage
+
+
+\section{Operating Systems}
+
+The operating system is one of the most crucial parts of a modern computer.
+
+
+\subsection{Virtual Memory}
+
+One of the most important features of modern operating systems is to provide virtual memory.
+Instead of having programs use the memory of the system directly, the operating system acts as if
+each process have the entire adrress space for itself. Behind the scenes the operating systems maps
+the programs address space to addresses on the physical memory. Naturally, the memory addresses on
+the physical memory does not overlap for different programs.
+
+\subsubsection{Memory Maps\label{sec:memory-map}}
+
+Memory maps is another feature that operating systems may provide. Typically a program may memory
+map a file, which maps the contents of the file to the virtual address space of the process. Then
+the program can read and write to the memory directly, and have the operating system take care of
+mirroring the changes to the file, which resides on disk.  The main motivation behind memory
+mapping a file is to abstract away the fact that the underlying data is not all in memory, but may
+be read and written to incrementally.
+
+
+\subsection{Threads and Processes}
+
+Each executing process may have multiple execution units called \emph{threads}. The main difference
+between threads and processes is that a process have its own address space whereas a thread does
+not. This allows multiple threads to communicate and share data by simplty sharing the location of
+the data they want to share.
+
+The most common implementation of threads on Unix based systems is \gls{pthreads}. \gls{pthreads}
+standarizes thread management, such as thread creation and joining, but also thread communication
+primitives such as mutexes, condition variables, and barriers.
+
+
+\subsection{Signals\label{sec:background-signals}}
+
+Signals is a \gls{ipc} feature in POSIX operating systems used for asynchronous communication
+between processes. Most system programmers have encountered a few signals in their carreer, such as
+\code{SIGSEGV}, \code{SIGINT}, \code{SIGKILL} and \code{SIGTERM}. Signals are caught by the
+receiving process and a signal handler is executed. Certain signals, like \code{SIGTERM} cannot be
+caught, as the intent behind the signal is to abruptly terminate the process.
+
+In addition to using signals for \gls{ipc}, \gls{pthreads} supports signals as well. The interface
+is similar to that of POSIX signals, but instead of sending signals to processes, they are send to
+threads within the sending process.
+
+
+\section{Programming Languages\label{sec:background-pl}}
+
+many different PLs
+
+language definitions, formality
+
+strong/weak contracts, UB
+
+
+
+\subsection{Garbage Collectors}
 
 \fixme{31/05 10:58 What types of GC are there?}
 A \emph{Garbage Collector} usually refers to an automatic subsystem that handles memory management
@@ -19,35 +83,112 @@ from other values.
 \fixme{31/05 10:58 Discussion about GC in general?}
 
 
-\section{Operating Systems}
-\lorem{}
-
-\subsection{Virtual Memory}
-\lorem{}
-
-\subsubsection{Memory Maps\label{sec:memory-map}}
-\lorem{}
-
-
-\subsection{Threads and Processes}
-\lorem{}
-
-
-\subsection{Signals\label{sec:background-signals}}
-\lorem{}
-
-
-\section{Programming Languages\label{sec:background-pl}}
-\lorem{}
 
 
 \section{Concurrency}
-\lorem{}
+
+concurrency vs parallelism
+
+
+Modern hardware and operating systems makes heavy use of concurrency; processes are continously
+preempted in order to have more processes executing than processors available on the system.  When
+the processes are running independently of each other this works rather seamlessly.  However, the
+hardware deals with many quite difficult concurrency problems that programmers seldom think about:
+for instance \emph{cache coherency}.
+
+Due to the increasing gap between memory access speed and compute speed, modern CPUs employ a range
+of caching schemes. By moving a copy of the memory a process is accessing physically closer to the
+execution unit on the processor, the access time is greatly reduced. However, with multiple
+processors on a single system, this data duplication introduces problems when two processes are
+accessing the same data, as the hardware must realize that the local data that each process have
+may be changed by the other process, and hence invalidated. This synchronization can be, and very
+often is, very expensive compared to the usual work of the CPU\@.
+
+Still worse, the memory location that the processes change does not need to be the same address,
+but just be in proximity of each other. This is because the cache of a processor does not operate
+on single words, but on whole segments called \emph{cahce lines}. Even ajacent cache lines may
+cause unneded synchronziation if the lines are read and modified by processes that does not share
+all levels of cache. Having superfluous synchronization due to the locality of modifies data among
+processes is called \emph{false sharing}.
+
+Another problem that the slow memory access speed realizes is that for communicating processes on
+different processors, the order of operations may be of the uttermost significance. This strongly
+imposes requirements on the hardware forces the inter-processor communication to be of a certain
+nature. It turns out, however, that this also decreses the performance of the CPU significantly.
+Attempting to both have our cake and eat it too, CPU architectures define a \emph{memory model}:
+rules about limitations on instruction reordering. Weak memory orderings, such as ARM and PowerPC,
+impose very few restrictions on the reorderings, so that programmers must write memory \emph{fence}
+instructions to explicitly manage the ordering relationship in the code. Strong memory orderings,
+like x86, on the other hand, allows very few reorderings. We will not discuss memory models and
+orderings further in this text, but it is useful to keep it in mind.
+
+Many operations require that multiple operations appear to happen as a single unit for all other
+processes. We call such operations \emph{atomic}. A simple atomic operation is the
+\code{fetch_and_add}: given a memory location, it reads the location of a number, increments the
+number, and writes the new incremented number back to the original location.  Simply reading,
+incrementing, and writing back using regular instructions will not work in a concurrent system:
+assume we have two threads $T_1$ and $T_2$, that both wants to count an event, sharing the counter.
+If the system only has one physical processor, $T_1$ might read a number $n$, increment it to
+$n+1$, and then become preempted before writing the value back to the original memory location.
+Then $T_2$ gets execution time, and records successfully $m$ events. Now, the next time $T_1$ is
+ran, it will write $n+1$ to the location, which will effectively remove the $m$ events that $T_2$
+counted. One of the most important atomic instructions is the \code{compare_and_swap(l, a, b)},
+which reads a location $l$, and writes $b$ to it, if it read $a$.
 
 \subsection{Common Patterns in Concurrent Programming\label{sec:common-patterns}}
-\lorem{}
+
+Many programming languages supports higher level concurrency constructs for concurrent programming,
+such as threads pools and the message passing pattern. A thread pool acts as a thread manager;
+given work to do it will manage the execution of the work on threads. The user of a thread pool
+does not need to know how this management functions, only that the work is executed concurrently,
+such that it hopefully utilizes the parallel nature of modern processors.  An often used idea in
+implementing a thread pool is \emph{work stealing}\todo{cite}, in which threads have their list of
+
+work avaiable to the other threads, which may ``steal'' a part of their work, should they run out
+themselves.
+
+Message passing is a concurrent computational model \todo{cite here}, which has seen somewhat of a
+renessance with programming languages such as Go \todo{cite}, and programming with co-routines, a
+popular pattern in Kotlin \todo{cite}. Message passing is often simpler than other means of
+communication, since the processes communicate in a clear manner, and can be programmed to act
+reactively.
+
+In lock-free programming, the \code{compare_and_swap}, or \code{cas}, operation is heavily used.
+The general idea is to attempt to perform an operation, having the comparison check that nothing
+has changes in between reading the value that we perform the \code{cas} on. If the \code{cas}
+fails, that is the read value was different, we restart. Otften operations look like
+\proc{Lock-Free-Op}.
+
+\begin{codebox}
+\Procname{$\proc{Lock-Free-Op}(l)$}
+\li \While \Then
+\li $m = \proc{Read(l)}$
+\li $\lit{some operation yielding a result $x$}$
+\li \If $cas(l, m, x)$ \Then
+\li \Return
+\End \End
+\end{codebox}
 
 \subsection{The ABA-Problem\label{sec:aba-problem}}
+
+However, there are pitfalls to this approach. Occationally checking that the location $l$ still has
+its value $a$ might not be sufficient to see that the remaining of the program is in the state that
+one expects. This problem is called the \emph{ABA-Problem}.
+
+Consider the following real world analogy: assume you have an opaque bottle that is filled with
+water. If you leave the bottle on your desk and return to it after lucnh, there is no way to see
+whether anyone has been drinking your water by simply inspecting the bottle from the outside.
+Someone might have taken the bottle, drunk the water, and put the bottle back as it were. Even
+worse, someone might have replaced your bottle with an identical bottle filled with bees.
+
+The ABA problem is often due to the fact that we may only look at a single word when
+performing the \code{cas}; had we been able to validate arbitrary memory this would not be a
+problem. Certain CPU architectures mitigate this problem by providing double \code{comare_and_swap}
+(\code{dcas}), which is two \code{cas} operations only executed if both suceed, or double-word
+\code{compare_and_swap} (\code{dwcas}), which checks, say, 128 bits instead of the word size of 64.
+It is possible to implement \code{cas} operations with arbitrary number of locations
+(\code{casn})\todo{cite}, but the implementations are often not practical.  Other alternatives
+include transactional memory.
 
 
 \section{Memory Reclamation}

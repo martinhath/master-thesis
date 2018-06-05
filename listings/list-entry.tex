@@ -2,7 +2,8 @@
                    label={lst:list-entry}]
 pub struct Entry<'a, T: 'a> {
     current: &'a mut cmr::guard::Guard<Node<T>>,
-    previous: &'a mut cmr::guard::Guard<Node<T>> }
+    previous: &'a mut cmr::guard::Guard<Node<T>>,
+    next: &'a mut cmr::guard::Guard<Node<T>>, }
 impl<'a, T> Entry<'a, T> {
     pub fn step(&mut self) -> Result<T>;
     pub fn current(&'a self) -> cmr::NullablePtr<'a, Node<T>>;

@@ -1,9 +1,10 @@
 \chapter{CMR\label{ch:cmr}}
+\epigraph{Garbage removal is a citizen responsibility.}{Jaime Lerner}
 
 In this chapter we present a concurrent memory reclamation scheme called \emph{CMR}.  We define the
 problem of memory management carefully in \cref{sec:cmr-problem-def}, in order to get a complete
 understanding of which problem we set out to solve.  In \cref{sec:cmr-overview} we present an
-abstract overview of CMR, in order to get a high level understanding of the system as a whole,
+abstract overview of CMR in order to get a high level understanding of the system as a whole
 without having to think about technical or implementation details.  \cref{sec:cmr-primitives}
 discusses the primitives and operations of CMR, and how they are used.  Finally in
 \cref{sec:cmr-correctness} we argue for the correctness of the system as presented in this chapter.
@@ -11,6 +12,7 @@ By reasoning about CMR without an implementation we later aim to show that the i
 (\cref{ch:implementation}) fits the description of the system as we define it in this chapter.
 
 
+\clearpage
 
 \section{Problem Definition\label{sec:cmr-problem-def}}
 
