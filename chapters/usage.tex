@@ -1,10 +1,10 @@
 \chapter{Usage of CMR\label{ch:usage}}
 
-\fixme{29/05 08:36 Write more here}
-In this chapter we look at usage code for CMR\@. The goal of this chapter is twofold: we want to
-look closer at how the abstractions that CMR provides are used, and how difficult they are to use;
-we also believe that showing the implementations of the data structures we can further reason about
-the performance characteristics and pitfalls for the results obtained in \cref{ch:results}.
+In this chapter we look at usage code for CMR\@. The goal of this chapter is twofold: we mainly
+want to look closer at how the abstractions that CMR provides are used and how difficult they are
+to use; we also believe that showing the implementations of the data structures we can further
+reason about the performance characteristics and pitfalls for the results obtained in
+\cref{ch:results}.
 
 We have implemented four data structures: a stack, a queue, a list, and a hashmap, and the
 implementations will be considered in sequence.
@@ -35,9 +35,8 @@ pointer as its top node.
 \input{listings/stack-ops}
 \end{figure}
 
-\subsubsection{Push}
+\subsection{Push}
 
-\fixme{06/05 19:14 After writing \ref{sec:common-patterns}, revisit this}
 \code{push} allocates the stack node itself, so it takes the value we want to push onto the stack
 \coderef{ST5}. We start out by declaring two \code{Guard}s \coderef{ST6}: one for the new node we
 allocate, and one for the head of the stack. We must protect the head of the stack, since the node
@@ -50,7 +49,7 @@ The top node is read \coderef{ST8}, and the \code{next} pointer of the new node 
 break out of the loop and return \coderef{ST10}. If not, we retry until we do.
 
 
-\subsubsection{Pop}
+\subsection{Pop}
 
 \code{pop} is similar to \code{push}. We declare two \code{Guard}s \coderef{ST13}, but this time
 they are for the first and second node in the stack. We read the \code{top} pointer \coderef{ST14},
@@ -119,12 +118,11 @@ real tail, and \code{cas}ed it to the last node \coderef{MS8}.
 
 \section{Lock-free List\label{sec:usage-list}}
 
-\fixme{07/05 22:22 insert more stuf here?}
-Michael introduced a concurrent List in~\cite{harris2001pragmatic}. The list is similar to the
-Stack from \cref{sec:usage-stack}, but we support more operations than \code{push} and \code{pop},
-including queries and removals, and insertions into arbitrary points in the list. Definitions of
-\code{List} are very similar to that of the \code{Stack} and \code{Queue}, and is therefore
-omitted.
+Michael introduced a concurrent List in~\cite{harris2001pragmatic}, which this implementation is
+based upon. The list is similar to the Stack from \cref{sec:usage-stack}, but we support more
+operations than \code{push} and \code{pop}, including queries and removals, and insertions into
+arbitrary points in the list. Definitions of \code{List} are very similar to that of the
+\code{Stack} and \code{Queue}, and is therefore omitted.
 
 Having arbitrary \code{insert} and \code{remove} opens for a problem known as \emph{double-remove},
 shown in \cref{fig:list-remove}. Let there be two threads in the system $T\sb{1}$ and $T\sb{2}$,
@@ -140,15 +138,15 @@ the ABA problem (\cref{sec:aba-problem}).
 \caption{Double removal with \code{List::remove}\label{fig:list-remove}.}
 \end{figure}
 
-A solution to this problem, as shown by Harris in~\cite{michael2002high}, is to exploit memory
-alignment on modern CPU architectures: \code{struct}s are \emph{aligned} in memory, meaning their
-address is a multiple of some power of two. This causes the least significant bits of their address
-to always be zero; bits that may be used for other purposes. We use the least significant bit in
-the \code{.next} field in a node for a \emph{tag}\footnote{Now we finally understand why CMR
-supports pointer tagging from \cref{sec:cmr-pointer-tagging}}, signaling that the node is logically
-deleted, and should not be acted upon. To see how this helps the problem as shown above, $T\sb{1}$
-would start out the deletion process of B by calling \code{cas(B.next, C, with_tag(C, 1))}. Should
-this fail, $T\sb{1}$ can just read \code{B.next} again, and retry. When it succeeds, it may try to
+A solution to this problem, as shown in eg.~\cite{michael2002high}, is to exploit memory alignment
+on modern CPU architectures: \code{struct}s are \emph{aligned} in memory, meaning their address is
+a multiple of some power of two. This causes the least significant bits of their address to always
+be zero; bits that may be used for other purposes. We use the least significant bit in the
+\code{.next} field in a node for a \emph{tag}\footnote{Now we finally understand why CMR supports
+pointer tagging from \cref{sec:cmr-pointer-tagging}}, signaling that the node is logically deleted,
+and should not be acted upon. To see how this helps the problem as shown above, $T\sb{1}$ would
+start out the deletion process of B by calling \code{cas(B.next, C, with_tag(C, 1))}. Should this
+fail, $T\sb{1}$ can just read \code{B.next} again, and retry. When it succeeds, it may try to
 \code{cas} \code{A.next} over B to C. Now $T\sb{2}$ realizes that it should not insert X between B
 and C, since it reads the tag of B, realizing that it was deleted.
 
@@ -303,3 +301,19 @@ entry for any given key in the map \coderef{HI17}. This is done by making a new 
 the new node, \code{step}ping once, so that the \code{current} node is not our new node, and
 \code{delete()} any node that has the right key.  When we hit a node which hash is more than our
 own, we are done.
+
+
+\subsection{Remove}
+\code{HashMap::remove} is, in comparison to \code{insert}, simpler.
+Finding the sentinel is similar to \code{insert} \coderef{HR3-HR7}, but in \coderef{HR8} we use
+\code{seek_with_opt} which allows for early termination of the search, since we should stop if we
+reach a node with a larger hash than the one we want to remove. We test the result of the search
+\coderef{HR14} and branch appropriately, and call \code{Entry::delete} \coderef{HR18} if we found
+the node we are looking for. Only if we suceed in removing the node we break the loop.
+
+\input{listings/hashmap-remove}
+
+An imporotant detail about \code{Entry::remove} is that the actual \code{cas} to remove the node
+from the list does not need to be successful for the operation to be considered as such; it is
+sufficient for the node to be tagged as removed. This is due to the fact that if the node is tagged
+as removed, any thread \code{step}ping over it will remove it.

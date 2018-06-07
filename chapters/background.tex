@@ -1,24 +1,40 @@
-\chapter{Background}
+\chapter{Background\label{ch:background}}
 
 In this chapter we briefly sum up the most important backgroud material we depend on in this text.
 Parts of the material is covered in a standard computer science education, but we will summarize it
 nevertheless.
+
+
+\cref{sec:background-rc,sec:background-ebr,sec:background-hazard} and parts of
+\cref{sec:background-related} are taken from~\cite{semester}.
 
 \clearpage
 
 
 \section{Operating Systems}
 
-The operating system is one of the most crucial parts of a modern computer.
+The operating system is one of the most crucial parts of a modern computer.  The functionality the
+operating system provides is generally an abstraction layer over the hardware of the machine, but
+it also acts as a resource manager for resources such as memory and processing time. We summarize a
+few of the most important topics within operating systems that are relevant for this thesis.
 
 
-\subsection{Virtual Memory}
+\subsection{Virtual Memory\label{sec:background-virtual-memory}}
 
 One of the most important features of modern operating systems is to provide virtual memory.
 Instead of having programs use the memory of the system directly, the operating system acts as if
 each process have the entire adrress space for itself. Behind the scenes the operating systems maps
 the programs address space to addresses on the physical memory. Naturally, the memory addresses on
 the physical memory does not overlap for different programs.
+
+The operating system handles memory in segments called \emph{pages}. The page size is configurable,
+but is usually 4096kB in size. Memory addresses in the program space is mapped to an adrress in a
+specific page, and the page is again mapped to the address on the physical memory.
+A common optimization in modern operating systems is for the pages to have \gls{cow} semantics;
+this means that when a page is copied, it is only marked as copied; it is first when either of the
+two copies of the page is changes that the actual copy is performed. This is an important
+optimization since many page copies are never modified.
+
 
 \subsubsection{Memory Maps\label{sec:memory-map}}
 
@@ -32,10 +48,20 @@ be read and written to incrementally.
 
 \subsection{Threads and Processes}
 
+Operating systems run programs as \emph{processses}. A process have a uniqe address space, in which
+only the process itself can operate\footnote{this is a truth with modifications; the kernel has
+naturally the privilege to touch all memory it pleases.}.
+While not so common in modern programming, a common pattern in handling processes is
+\emph{forking}, where the process clones itself, and both copies, the child and parent process,
+continue their execution. This is an excelent application of the \gls{cow} semantics of page
+cloning as mentioned in \cref{sec:background-virtual-memory}, since the entire address space of the
+process is copied.
+
 Each executing process may have multiple execution units called \emph{threads}. The main difference
 between threads and processes is that a process have its own address space whereas a thread does
 not. This allows multiple threads to communicate and share data by simplty sharing the location of
-the data they want to share.
+the data they want to share. Threads are also much lighter, meaning there is a smaller overhead in
+creation and switching execution of threads than that of processes.
 
 The most common implementation of threads on Unix based systems is \gls{pthreads}. \gls{pthreads}
 standarizes thread management, such as thread creation and joining, but also thread communication
@@ -57,38 +83,65 @@ threads within the sending process.
 
 \section{Programming Languages\label{sec:background-pl}}
 
-many different PLs
+Programming languages have been a hot topic since the birth of computing; we have always been
+interested in being able to express our intent for the computer clearly and effectively. Despite
+computing being a field of growing experience, new programming languages are still introduced by
+the dozen, and programming languages that are older than the average programmer are still in heavy
+use.
 
-language definitions, formality
+Many programming languages have a formal specification to specify the operational semantics of the
+language constructs, as well as guarantees of what subroutines and data types are generally
+available, in addition to details about said subroutines and data types. Having a specification of
+the programming language one uses can greatly improve security, predictability, and stability of
+language implementations, such as compilers or run-times.
 
-strong/weak contracts, UB
+Sometimes it may be wiser for language designers not to define parts of the language; many parts of
+any language is heavily introduced by the features or constraints of the hardware of the era that
+the language is defined in. For instance, as the C programming language was designed, having an own
+data type for floating point numbers \code{float} and \code{double} might not have been obvious,
+considering that few machines supported them. Being faced with the same choice today is quite
+different --- no modern programming language ships without native support for floating point
+numbers.
+
+There are usually gray zones of the definitions of parts of programming languages. For instance, in
+the C and C++ world it is common to differentiate between \emph{implementation defined}, meaning an
+implementation is free to define the semantics, but it must be documented; \emph{unspecified
+behaviour}, meaning an implementation needs not define its choice; and \emph{undefined behaviour},
+where all bets are off --- a program containing \gls{ub} does not make sense.
+
+Other reasons for not having a completely specified language is that compiler writers may make
+assumptions about the indented semantics of the code. For instance, we could say that if $a > 0$
+then $x + a > x$ is always \code{true}. However, if the addition of $x$ and $a$ overflows, it may
+lead to a number that is \emph{smaller} than $x$. Another example is that $a = 2x$ should imply
+$\frac{a}{2} = x$. Again, should the multiplication $2x$ overflow, this might not be true.
+If we abstain from defining the overflow of numbers, we can get away with making these assumtions;
+the program may end up producing non-sensible results, but from a language specification standpoint
+that is alright, as the program was invalid to begin with: its behaviour was undefined.
+
+Good introductions to the tradeoffs regarding \gls{ub} includes
+\cite{regehr2017undefined,carruth2016garbage}.
 
 
 
 \subsection{Garbage Collectors}
 
-\fixme{31/05 10:58 What types of GC are there?}
-A \emph{Garbage Collector} usually refers to an automatic subsystem that handles memory management
-without requiring programmer assistence. Many widespread language implementations,
-including Java, Python, and Go, use a garbage collector, although the internal details of each
-system varies greatly.
+Another important distinction in programming langauges are \emph{managed} and \emph{unmanaged}
+languages. The former usually refers to languages in which memory management is abstracted away by
+having a runtime with a subsystem that manages memory allcation and reclamation automatically; such
+a system is often refered to as a \emph{Garbage Collector}. Most of the mainstream programming
+languages today, including Python, Ruby, Java, Go, Javascript, and C\#, are managed languages.
 
-\fixme{31/05 10:58 More here}
-The job of the garbage collector is to identify memory segments that are no longer used by the
-program. One way of doing this is to represent the program memory as a graph $G=(V, E)$ where $V$ is
-all allocated memory segments and $(u, v) \in E$ if the region $u$ contains an address that is
-inside the segment $v$. One consequence of this model is that memory addresses cannot be computed
-from other values.
-
-\fixme{31/05 10:58 Discussion about GC in general?}
-
+There are many variations of garbage collectors. The most common is the \emph{tracing garbage
+collector}, where the system traces memory addresses through the application memory in order to
+find out what subset of the total memory are still in use. Depending on the programming language,
+the garbage collector may be optimized to handle specific allocation patterns. One common pattern
+is the fact that most allocated objects are only in use for a short time; thus it might make sense
+to handle new objects different from old objects, as the probability that a new object is already
+not in use may be quite high.
 
 
 
 \section{Concurrency}
-
-concurrency vs parallelism
-
 
 Modern hardware and operating systems makes heavy use of concurrency; processes are continously
 preempted in order to have more processes executing than processors available on the system.  When
@@ -142,16 +195,15 @@ such as threads pools and the message passing pattern. A thread pool acts as a t
 given work to do it will manage the execution of the work on threads. The user of a thread pool
 does not need to know how this management functions, only that the work is executed concurrently,
 such that it hopefully utilizes the parallel nature of modern processors.  An often used idea in
-implementing a thread pool is \emph{work stealing}\todo{cite}, in which threads have their list of
+implementing a thread pool is \emph{work stealing}\cite{blumofe1999scheduling}, in which threads
+have their list of work avaiable to the other threads, which may ``steal'' a part of their work,
+should they run out themselves.
 
-work avaiable to the other threads, which may ``steal'' a part of their work, should they run out
-themselves.
-
-Message passing is a concurrent computational model \todo{cite here}, which has seen somewhat of a
-renessance with programming languages such as Go \todo{cite}, and programming with co-routines, a
-popular pattern in Kotlin \todo{cite}. Message passing is often simpler than other means of
-communication, since the processes communicate in a clear manner, and can be programmed to act
-reactively.
+Message passing is a concurrent computational model~\cite{hewitt1973session}, which has seen
+somewhat of a renessance with programming languages such as Go~\cite{go}, and programming with
+co-routines, a popular pattern in Kotlin~\cite{kotlin}. Message passing is often simpler than other
+means of communication, since the processes communicate in a clear manner, and can be programmed to
+act reactively.
 
 In lock-free programming, the \code{compare_and_swap}, or \code{cas}, operation is heavily used.
 The general idea is to attempt to perform an operation, having the comparison check that nothing
@@ -164,7 +216,7 @@ fails, that is the read value was different, we restart. Otften operations look 
 \li \While \Then
 \li $m = \proc{Read(l)}$
 \li $\lit{some operation yielding a result $x$}$
-\li \If $cas(l, m, x)$ \Then
+\li \If $\proc{cas}(l, m, x)$ \Then
 \li \Return
 \End \End
 \end{codebox}
@@ -181,28 +233,181 @@ whether anyone has been drinking your water by simply inspecting the bottle from
 Someone might have taken the bottle, drunk the water, and put the bottle back as it were. Even
 worse, someone might have replaced your bottle with an identical bottle filled with bees.
 
-The ABA problem is often due to the fact that we may only look at a single word when
-performing the \code{cas}; had we been able to validate arbitrary memory this would not be a
-problem. Certain CPU architectures mitigate this problem by providing double \code{comare_and_swap}
-(\code{dcas}), which is two \code{cas} operations only executed if both suceed, or double-word
-\code{compare_and_swap} (\code{dwcas}), which checks, say, 128 bits instead of the word size of 64.
-It is possible to implement \code{cas} operations with arbitrary number of locations
-(\code{casn})\todo{cite}, but the implementations are often not practical.  Other alternatives
-include transactional memory.
+The ABA problem is often due to the fact that we may only look at a single word when performing the
+\code{cas}; had we been able to validate arbitrary memory this would not be a problem. Certain CPU
+architectures mitigate this problem by providing double \code{comare_and_swap} (\code{dcas}), which
+is two \code{cas} operations only executed if both suceed, or double-word \code{compare_and_swap}
+(\code{dwcas}), which checks, say, 128 bits instead of the word size of 64.  It is possible to
+implement \code{cas} operations with arbitrary number of locations
+(\code{casn})\cite{harris2002practical,luchangco2003nonblocking}, but the implementations are often
+not practical. Other alternatives include transactional memory, but this is not covered in this
+thesis.
 
 
 \section{Memory Reclamation}
-\lorem{}
 
-\subsection{Hazard Pointers\label{sec:hazard-pointers}}
-\lorem{}
+Most programs require blocks of memory which size is only known at runtime, but the operating
+system usually only deals with memory in pages. Memory allocation is a system designed to unify the
+two by managing large blocks of memory and handing out portions of it to the process. The subsystem
+managing this is called the allocator. Many general purpose allocators exist, such as
+\cite{glibc-malloc,jemalloc,tcmalloc}, and general ideas can be found in~\cite{knuth1997vol1}.
+
+The use of a general purpose allocator ifor all allocations is a program is often a source of
+performance problems; specialized allocators for short lived objects, small objects, large objects,
+or bulk allocated and reclaimed memory (an ``arena'') are often used.
+
+In concurrent systems, memory reclamation is much harder. The main source of problems seems to be
+that scheduling of threads is unpredictable, and it is hard to differentiate whether a thread is
+done using some memory or if it just has not used the memory in a long time, which again may be due
+to it being preempted.
+
+We look at a few schemes for concurrent memory reclamation.
+
+
+\subsection{Reference Counting\label{sec:background-rc}}
+
+Reference counting (RC) is a natural solution for memory reclamation. It was introduced in 1960 by
+G. E.  Collins\cite{collins1960method}, where it was used for collecting nodes of a linked list.
+The idea is that we count the number of references to data, so that we can tell if we are holding
+the only reference to some data. When we no longer need this reference, we know it is safe to
+reclaim the memory the reference points to, since no other reference to that memory exists. The
+primary downsides of RC is that it is rather expensive, and that a na\"\i{}ve implementation does
+not reclaim cycles. Today reference counting is still used, although it is unusual to have it be
+the primary mechanism for memory management, due to its performance overhead.
+
+Atoimc reference counting (ARC) is RC using atomic variables, and is a natural extension of RC\@.
+However, the na\"\i{}ve implementation is not correct: consider two threads operating on some
+\code{Rc<T>}. When thread $A$ want to create a new reference to the data, it increments the count
+in the \code{RC} object. Upon destruction, the count is decremented and the data is freed if the
+count is 0. However, it is possible that thread $B$ has a reference to the RC object and that it
+got preempted right before incrementing the count. Then the whole object gets freed by thread $A$,
+since the count is 0, and when thread $B$ gets execution time again, it has a pointer to freed
+memory which it indents to read.
+
+A way to mitigate this problem is by indirection: we can use intermediate \code{Rc} nodes which are
+the counter and a pointer to the actual data. The intermediate nodes are never free'd, and by
+\code{CAS}ing the count to a sentinel value upon destruction of the data, thread $B$ can detect
+that it is about to read free'd memory and abort its operation. By allocation the \code{Rc} objects
+with a memory arena and freeing them in bulk, this might be acceptable for certain problems, as the
+data itself is not leaked, but only the \code{Rc} nodes, which may be comparably small.
+
+Despite the problem of atomic reference counting, there are still use cases for it. A thread $A$
+may create an \code{Arc} object, and make a copy of its reference to it, incrementing the count,
+and only \emph{then} pass it to another thread. This avoids the problem in the previous paragraphs,
+since the only threads that need to increment the reference count is already holding onto another
+reference, thus making it impossible that the count reaches zero before we get to increment it.
+When all threads have dropped their reference, the count will drop to zero, and the \code{Arc} will
+be free'd, not risking that any other thread is just about to increment its count.
+
+
+\subsection{Epoch Based Reclamation\label{sec:background-ebr}}
+
+Epoch Based Reclamation (EBR) was introduced by Fraser in~\cite{fraser2004practical}. It is a
+reclamation scheme based on the observation that most programs have no references to internal data
+structure memory in between of operations on the structure. The time interval in between operations
+on the data structure are therefore safe-points (also called grace periods) for memory reclamation
+to occur, since we do not risk invalidating any data that other threads are using in this period.
+EBR uses the concept of an \emph{epoch}, a global timestamp which we use to find out when it is
+safe to reclaim retired memory. The epoch is a global counter. In addition we have a global list
+with one entry for each running thread, which the threads use for broadcasting their state, which
+includes the last epoch they read as well as whether they are currently performing an operation. We
+call a thread performing an operation \emph{pinned}, and the action of marking and unmarking
+\emph{pinning} and \emph{unpinning} the thread.
+
+When starting an operation a thread reads the global epoch, stores it in its entry, and pins the
+thread. Upon retiring memory the thread marks the memory with the global epoch and puts it in a
+\emph{limbo list}. Every once in a while, the threads try to increment the epoch, which succeeds if
+all current pinned threads have seen the current epoch. Note that we only have to look through the
+thread entries once: if another thread is pinned while we are searching, it will read the current
+epoch, and cause no problems for us. The requirement for epoch incrementation means that all
+threads that have references to memory we might want to free is either in the current or the
+previous epoch. Thus, after incrementing an epoch to $e$ we know that garbage that was added in
+epoch $e-2$ is safe to be freed.
+
+Note that it is important that the thread inserting into the limbo list uses the global epoch, and
+not the epoch it read when it was pinned. If we use the previously read epoch, we may run into the
+following scenario: \begin{enumerate} \item $A$ pins the thread at $e=5$, and wants to remove $O$
+from the data structure.  \item $B$ increments the epoch to $e=6$, and obtains a reference to $O$.
+\item $A$ unlinks $O$ from the data structure, and adds it to the limbo list, with $e=5$. $A$
+unpinns, and increments the epoch to $e=7$.  \item It is now safe, by our rules, to free $O$,
+although $B$ is still holding a reference to it.  \end{enumerate} By reading the global epoch
+before pushing to the list we avoid this problem, since $O$ is unlinked from the data structure
+before reading the epoch. This makes it impossible for $B$ to have incremented the epoch, and
+\emph{then} get a reference to $O$, without $A$ reading the incremented epoch.
+
+EBR is very popular, due to its extremely low overhead.  However, there are still a few challenges
+with EBR\@. A problem is that we are not allowed to keep references to data across operations,
+since the thread must be pinned while we are using the references. A natural way to mitigate this
+constraint is to leave the thread pinned. However, this will stop the advancement of the global
+epoch, and thus effectively halting the memory reclamation. An immediate consequence of this is
+that EBR is not lock-free, which is not acceptable for all use cases.
+
+\subsection{Hazard Pointers\label{sec:background-hazard}}
+
+Hazard pointers were introduced by Michael in~\cite{michael2004hazard}.  The paper formalizes
+hazardous pointers, and includes a proof of correctness. We will settle for a informal view of
+them. It is based on the observation that in most operations on data structure we only need a small
+constant number of references to memory that is shared between running threads. The technique
+exploits this by allowing each thread to register the pointers, called \emph{hazard pointers}, the
+thread wants to use, but which it cannot be sure are safe (meaning invalid og prone to ABA errors).
+We call potentially unsafe pointers \emph{hazardous}. The number of pointers we need varies with
+the algorithm performed, but a typical value is one or two.
+
+After reading a hazardous pointer the thread registers it as one of its hazard pointers. It then
+have to \emph{validate} that the pointer is still in the data structure, as it might have been
+removed in between the initial read and the hazard registration. When we want to free memory we
+look through the hazard pointers of all running threads. If no other thread has registered the
+memory it will be safe to free, since the object is already unlinked from the data structure, and
+is hence no longer reachable. If a thread has read the pointer before it became unlinked but not
+yet registered it, it will fail validation.  We note that again, as with EBR, a single pass through
+this list is sufficient: the object is unlinked before searching, so if a thread has a reference to
+it, but is yet to register it as one of its hazard pointers, then it will fail validation.
+
+If the memory is registered in a thread, we cannot immediately free the memory.  We now have two
+options: wait for the thread to finish, or defer the deallocation.  By waiting on the thread, we
+are relying on that the other thread will ever deregister the pointer. Hence, we give up
+lock-freedom, as this is prone to deadlocking. It has, however, very low overhead, and will be very
+fast assuming all threads are fairly scheduled and have similar work load.  Deferring the
+deallocation is a safer option, although it have a higher overhead, since wee need to push the
+pointer into a queue (or a similar scheme). We would then occasionally visit the queue and see if
+any of the pointers in it have been deregistered by all threads.
+
+A challenge in the usage of HP is that we need to identify which pointers in our algorithms are
+hazardous. In comparison, we have no such concerns in EBR, in which we only need to register memory
+as garbage when we remove it from the data structure (we do need to make sure that this memory is
+only registered by a single thread). Another challenge is that of validation, as there is no
+general way to do this. For most structures there is an obvious way of doing this. For instance, in
+a queue we can validate the front element by reading the \code{head} pointer again, observing that
+it has not changed. However, it still requires local knowledge of the data structure in question.
+
 
 \subsection{Forkscan\label{sec:forkscan}}
-\lorem{}
+
+Forkscan is a recent addition to the family of memory reclamation schemes, and was introduced in
+~\cite{alistarh2017forkscan}. The high level idea is to have a thread \code{fork()} off a new
+process, and scan the stacks of all threads in the system, looking for pointers. This way the
+system can find all addresses that are reachable, and thus also addresses that are no longer
+reachable. It also employs signals (\cref{sec:background-signals}) to have threads do some work
+before the process forks. Since the signal handler is a new procedure signaling the threads ensures
+that they push out their registeres to the stack.
 
 
-\section{Related Works}
-\lorem{}
+\section{Related Works\label{sec:background-related}}
+
+Automatic memory management exist for languages that does not provide this luxury themselves; the
+most known example is the BDW-GC~\cite{bdwgc}.  There is also ongoing work for standarizing such
+systems in some languages; A proposal for including hazard pointers and RCU (read-copy-update, not
+covered in this report) into the C++ standard library was released in November 2017 \cite{cpp:mr}.
+There is also ongoing work in managed languages, despite the presence of a garbage collector. An
+example is Project
+Snowflake~\cite{project-snowflake-non-blocking-safe-manual-memory-management-net} which combines
+ideas from both EBR and HP to get more efficient reclamation for concurrent systems on the\@.NET
+platform.
+
 
 \subsection{Crossbeam}
-\lorem{}
+
+In the Rust ecosystem the most notable contribution to the space of concurrency is the Crossbeam
+umbrealla project\cite{crossbeam}. Crossbeam aims to offer concurrent data structures and
+primitives, in addition to memory reclamation systems. As of June 2018 a system using EBR is
+available, and ideas for a system using HP are voiced.

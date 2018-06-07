@@ -10,7 +10,8 @@
 \usepackage{siunitx}
 \usepackage{csquotes}
 \usepackage{booktabs}
-\usepackage[T1]{fontenc}
+% \usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
 \usepackage[toc]{appendix}
 \usepackage{amsmath}
 \usepackage{amsthm}
@@ -27,10 +28,12 @@
             linecolor=none,
             bordercolor=none,
             backgroundcolor=none]{todonotes}
+
 % \usepackage{libertinust1math}
 \usepackage{euler}
 \usepackage{libertine}
 \usepackage{inconsolata}
+
 \usepackage{listings}
 % \usepackage{parskip}
 \usepackage{wrapfig}
@@ -61,7 +64,7 @@
   {\center\vspace{2cm}}
   {\large\scshape{\chaptertitlename} \thechapter}
   {0ex}
-  {\huge}
+  {\huge\thispagestyle{empty}}
 
 \titleformat*{\section}{\Large}
 \titleformat*{\subsection}{\large}
@@ -116,6 +119,7 @@
 
 \input{macros.tex}
 
+\setcounter{page}{1}
 \input{chapters/abstract}
 \null\clearpage
 
@@ -124,7 +128,7 @@
 
 
 \tableofcontents%
-\listoffigures%
+% \listoffigures%
 % \listoftables%
 
 \listoftodos[Resolve These Things]
@@ -132,8 +136,6 @@
 \clearpage\null%
 \clearpage\setcounter{page}{1}%breakbreak
 \renewcommand{\thepage}{\arabic{page}}%
-
-% \part{Bing Bong}
 
 
 \pagestyle{fancy}
@@ -146,30 +148,26 @@
 
 \input{chapters/cmr.tex}
 
-
-% \part{Abcdef}
-
 \input{chapters/implementation}
 
-\input{chapters/methodology}
-
 \input{chapters/usage}
+
+\input{chapters/methodology}
 
 \input{chapters/results}
 
 \input{chapters/conclusion}
 
-\begin{appendices}
-\appendix
-  \chapter{Extended Results\label{ap:results}}
-\end{appendices}
+% \begin{appendices}
+% \appendix
+%   \chapter{Extended Results\label{ap:results}}
+% \end{appendices}
 
-\printglossary[type=\acronymtype,title=Abbreviations]
-\printglossary{}
+% \printglossary[type=\acronymtype,title=Abbreviations]
+% \printglossary{}
 
 \bibliographystyle{acm}
 \addcontentsline{toc}{chapter}{Bibliography}
 \bibliography{sources}
-
 
 \end{document}

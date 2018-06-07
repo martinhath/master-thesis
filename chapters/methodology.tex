@@ -1,18 +1,23 @@
-\chapter{Methodology}
-\lorem{}
+\chapter{Methodology\label{ch:methodology}}
+
+This chapter summarizes some of the practical matters surrounding the implementation part of the
+thesis. This is neither a description of, nor a part of the implementation, of CMR\@. Despite this
+we believe documenthing the methods of experimentation is of equal importance in Computer Science
+as in any other science.
+
+We look at testing in \cref{sec:methods-testing}, as testing of concurrent systems are of a
+different nature than that of sequential programs.  \cref{sec:methods-benchmarking} shows how we
+have performed the benchmarks, which results are presented in \cref{ch:results}.
+
 
 \clearpage
 
-\section{Development}
-\lorem{}
+\section{Testing\label{sec:methods-testing}}
 
-
-\section{Testing}
-
-Testing is an important part of sfotware development. While formal methods have not yet made its
+Testing is an important part of software development. While formal methods have not yet made its
 way into the software development insdustry, simpler and more heuristic methods, like unit testing
 and integration testing, are widespread. However, while testing is useful to improve the quality of
-software, it is far from sufficient. As Edsger Dijkstra famously said\cite{buxton1970software}: 
+software, it is far from sufficient. As Edsger Dijkstra famously said\cite{buxton1970software}:
 \begin{displayquote}
 Testing shows the presence, not the absence of bugs
 \end{displayquote}
@@ -34,7 +39,7 @@ frees, and pointer reads.  Allocations and frees were tracked in two \code{HashM
 \code{ALLOCATIONS} and \code{FREES}.  On each new allocation, we insert it into the \code{HashMap}
 while asserting that it was not there previously. We also remove it from the frees map, in case it
 had previously been allocated and freed. Since we are using a custom pointer type, \code{Ptr},
-checking the validity on each pointer access is possible, as shown in \cref{lst:ptr-sanitize}.
+checking the validity on each pointer access is possible, as shown in the snippets below:
 
 \begin{lstlisting}[style=Rust]
 pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
@@ -46,9 +51,7 @@ pub fn alloc<'a, T: Trace>(t: T) -> Ptr<'a, T> {
         f.remove(&addr); }
     unsafe { Ptr::new(addr) } } \end{lstlisting}
 
-\begin{figure}[ht]
-\begin{lstlisting}[style=Rust, label=lst:ptr-sanitize,caption=Verifying all pointer accesses with
-\code{sanitize}]
+\begin{lstlisting}[style=Rust]
 impl<'a, T> Deref for Ptr<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
@@ -56,42 +59,48 @@ impl<'a, T> Deref for Ptr<'a, T> {
             let a = ::alloc::ALLOCATIONS.lock().unwrap();
             if !a.contains(&addr(self)) {
                 let was_freed = ::alloc::FREES.lock().unwrap().contains(&addr(self));
-                panic!("{:x} is not valid. Was is freed? {}", self.data, was_freed); } }
-        unsafe { &*(self.as_raw()) } } }\end{lstlisting}
-\end{figure}
+                panic!("{:x} is not valid. Was it freed? {}", self.data, was_freed); } }
+        unsafe { &*(self.as_raw()) } } }
+\end{lstlisting}
 
-\section{Benchmarking}
 
-The benchmarks are ran with 5 second trials, where a function is ran repeatedly for the duration
-with any specified number of threads. The number of executions is counted for each thread and
-the total operations per second is reported. All threads run the same code, but they may have
-different thread local data. This is useful when benchmarking \code{HashMap::insert}, so that the
-threads can inserts values with different keys.
+This feature was of great help during development and testing, and it quickly reported illegal
+memory accesses, without having the overhead of other sanitizers like Valgrinds \code{memcheck}.
+The downside of this sanitizer is that it did not show the source of the errors, only their
+precense. However, with this in mind we could rerun the program using \code{memcheck} and try to
+force the illegal accesses to manifest themselves, as we then knew that they were present.
+
+
+
+\section{Benchmarking\label{sec:methods-benchmarking}}
+
+The benchmarks are ran with timed trials, where a function is ran repeatedly for a specified
+duration with any number of threads. The number of executions is counted for each thread and the
+total operations per second is summed and reported. All threads run the same code, but they may
+have different thread local data. This is useful when benchmarking \code{HashMap::insert}, so that
+the threads can inserts values with different keys. Threads also time their execution time to catch
+skewage in the executed wall time for each thread, due to unfortunate scheduling.
 
 There are a number of pitfalls when it comes to benchmarking code. We discuss a few of them;
 \cite{rare} is a good resource for experimental testing of data structures.
 
 Initialization of data structures should not be done on a single core as this creates
 a strong skew of data locality for that core, and other cores will have reduced performance due to
-the data locality. This is especially important on systems with multiple CPU sockets.
+the data locality. This is especially important on NUMA systems with multiple CPU sockets.
+The effect of having a single thread initializing all data is also dependent on the allocator used.
 
-
+Having a constant overhead, and assuming that all workloads are equally hit by the overhead of the
+performance profiling system may also lead to errors; smaller workloads will naturally be more
+affected, and percentage wise changes to the reported data may get biased.
 
 
 \subsection{Trench}
 
-In order to more effectively benchmark threaded applications, an open source benchmarking library
+
+In order to more effectively benchmark threaded applications in Rust, an open source benchmarking library
 called \code{trench}\cite{trench} was developed. The library handles thread management and state
 for the runs of the benchmark. Trench supports both mutable thread local state and immutable shared
-state between all threads. For CMR this is useful since we can put the data strucutres we want to
-benchmark in the immutable shared state, as neither of the operations we want to test are
-\code{\&mut self} (see \cref{sec:concurrency-and-aliasing}). The user specifies the function to be
-benchmarked, the number of threads, and the states, and the duration of the benchmark, and
-\code{trench} handles the rest. The number of runs of the function specified during the given
-duration is measured.  \cref{lst:trench-ex} shows the benchmark for \code{HashMap::insert}.
-\code{RandomSource} allows us to pregenerate random numbers that we can insert into the hashmap,
-such that the random number generation itself is thread local, and is not included in the
-benchmarking loop.
+state between all threads.
 
 \begin{figure}[ht]
 \begin{lstlisting}[style=Rust,
@@ -107,6 +116,26 @@ fn hashmap_insert(num_threads: usize) {
     println!("cmr::HashMap\tinsert\t{} ops/sec", fmt_thousands_sep(res.ops_per_sec)); }
 \end{lstlisting}
 \end{figure}
+
+
+\begin{figure}[ht]
+  \input{figures/trench}
+  \caption{Illustration of the \code{HashMap} benchmark. The four threads all have their own
+  \code{RandomSource} which supplies thread local random numbers, and they share the
+  \code{HashMap}.}
+\end{figure}
+
+For CMR this is useful since we can put the data strucutres we want to
+benchmark in the immutable shared state, as neither of the operations we want to test are
+\code{\&mut self} (see \cref{sec:concurrency-and-aliasing}). The user specifies the function to be
+benchmarked, the number of threads, and the states, and the duration of the benchmark, and
+\code{trench} handles the rest. The number of runs of the function specified during the given
+duration is measured.
+
+
+\cref{lst:trench-ex} shows the benchmark for \code{HashMap::insert}.  \code{RandomSource} allows us
+to pregenerate random numbers that we can insert into the hashmap, such that the random number
+generation itself is thread local, and is not included in the benchmarking loop.
 
 The \code{with_local_state} function runs the closure on each thread in parallel; this is used both
 for initializing the local state, and for thread local initialization and destruction.

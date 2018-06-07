@@ -1,17 +1,88 @@
-\chapter{Conclusion}
+\chapter{Conclusion\label{ch:conclusion}}
 \epigraph{Are we there yet?}{\textit{Unknown}}
-\lorem{}
+
+In this report we have presented CMR, a new memory reclamation system for concurrent systems, in
+the Rust programming language. We have presented an abstract description of the system, and walked
+through the most important parts of the implementation. Then, we have shown usage code for the
+system, namely four concurrent lock-free data structures. After notes on practical matters of the
+implementation work, we have looked at experimental results of both CMRs primitive operations as
+well as the performance of the data strucutres implemented using CMR\@. What remains is a
+conclusion
 
 \clearpage
 
 \section{Is CMR Useful?}
-\lorem{}
+
+The big question of this text is that of the usefulness of CMR\@. While the operational throughput
+measured of the hash table that used CMR was almost always above that of its main competitor in
+this thesis, the SkipList from Crossbeam, we note that the difference with and without the overhead
+of CMR often was quite significant; occationally the functioning version of CMR laid right in
+between Crossbeam and non-functioning CMR\@.  It is therefore fair to assume that much of the
+difference is due to the difference in implementation, as noted in \cref{sec:results-ds}. This was
+not always the case however, and there is clear use cases where CMR really shows a low overhead,
+namely low write-intensive workloads.
+
+A pain point of CMR is that it depends on forking the process. While modern operating systems
+leverate \gls{cow} optimizations on such operations, these might still be very expensive.  Worse
+still, the cost of this operation, and thus also of CMR in total, is not dependant on the size of
+the subset of the process that is performing concurrent work, but the process as a whole: any large
+application, like a compiler, will most likely not be able to utilize CMR in a meaningful way,
+since the overhead of the fork operation is likely to be too high.
+
+Still, we argue that CMR presents a simple API for programmers to work with; we require no explicit
+free calls, and implementation of rather intricate data structures has shown that a very low number
+of \code{unsafe} blocks is required in order to handle memory --- this despite the very unsafe
+nature of concurrent programming. We believe that CMR may act as a good instructional example of
+a way of making a safe interface over an intrinsicly unsafe one, by utilizing the Rust type system.
+
 
 \section{Alternatives}
-\lorem{}
+
+There are still a numerous variants of concurrent memory reclamation scemes. For most applications
+it seems that is is hard to beat Epoch-based reclamation (\cref{sec:background-ebr}), due to its
+very lean overhead. Considering that Rust also has a well implemented third-party crates for EBR,
+it is fair to say that the Rust ecosystem does not lack viable options for managing memory in a
+concurrent setting.
+
+Other alternatives also exist, and there are numerous implementation of Hazard Pointers
+(\cref{sec:background-hazard}), despite no one crate is sticking out as \emph{the} go-to
+implementation of HPs. It seems that most users that require a memory management system in their
+code base prefer to implement their own version, so that they can tailor the implementation to
+their needs.
+
+It seems that there is still room in the Rust ecosystems for contenders within the concurrency
+space, memory reclamation being no exception.
+
 
 \section{Future Work}
-\lorem{}
 
-\section{Closing Words}
-\lorem{}
+Working in a relatively new and sparse problem space allows for many ideas to come to life during
+development, and CMR has not been an exception to this. Plenty of ideas have been considered, only
+for the author to realize that time is sparse.
+
+The subset of a program in which threads are operating concurrently with other threads is usually
+rather small; not many tasks fit in this space. Additionally, for the data structures implemented
+in this thesis, much of the execution time is spent on allocation. For this reason it would make
+sense to have a specialized allocator for, say, a data structure. The allocator would then have
+access to patterns, like the size of allocations, or the lifetime of objects. For instance, an
+allocator for a \code{Queue} of a certain type would always be the same, and the lifetime would
+often be the same as the allocation order. This might allow performance gains.
+
+Despite forking being a pain point of CMR, it might be possible to use the idea of a custom
+allocator to limit the pages in which shared memory resides. If we could limit the types of objects
+referenced from the shared memory, we might get away with not having to copy the entire memory
+space when we \code{fork}, but only the parts of the memory that is allocated for concurrent use.
+This could greatly reduce the overhead of forking, and would make the overhead of such as scheme
+independent of the total memory space of the process, but only dependent on the memory used for
+concurrent operations.
+
+Many data structures and applications still remains to consider for CMR\@, in order to see whether
+a system that is similar to CMR is featuble for real-world usage. The primary issue in performing
+such a survey today is that there is simply a lack of use cases: CMR is heavily dependent on Rust,
+and there are simply not many large enough applications to make a fair comparison between CMR and,
+say, the GDW-GC\@.
+
+It is still not clear how memory management for concurrent systems can --- or even \emph{if} they
+can --- be unified with static analysis, such as the Rust borrow checker, for concurrent systems,
+or in what degree programming langauge rules can help programmers utilize the system they are
+programming on while still helping the programmer not to make mistakes. While Rust certainly is a

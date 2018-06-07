@@ -1,15 +1,114 @@
 \chapter{Introduction}
 
+In this chapter we introduce the problem space in which this thesis operates.
+We look at the general problem that we want to solve, and why it is an interesting problem.
+We also draw an outline of the structure of this thesis, and summarizes each chapter in short.
+
 \clearpage
 
-\section{idk}
 
-This is a thesis blabla
-\\
-Something about memory management and parallel systems
-\\
-bing bong about CMR
-\\
-Motivation
-\\
-RQ\ ?
+
+\section{History}
+
+
+The clock speed of computer processors have had a very fast increase in the last 50 years;
+Gordon Moore observed in 1965 that he number of components in an integrated circuit roughly had
+doubled every 18 months, and speculated that this trend would continue for the next 10 years.
+The law, which now is knows as Moores Law, still holds true today.
+Moores Law has also been used on the clock speed of CPUs. This trend, however, has grinded to a
+halt; the clock speed of desktop processors in the last 10 years have been more or less stagnant.
+Despite the lack of clock increase, there have been major improvements in modern CPUs. Improvements
+include pipelining, branch prediction, out-of-order execution, and, most important for this thesis,
+multiple processing cores.
+
+
+Multi-core processors have been increasingly mainstream in the last 10 years; modern enthusiast
+desktop CPUs, like the recently announced AMD ThreadRipper 2, has 32 cores and support for 64
+hardware threads. Even embedded systems, like smartphones, often come in variants with 4 or 8
+threads. While multi-core systems may offer increase on computation speed, they also introduce new
+problems; utilization of parallel systems is not trivial. Many problems are inherently serial and
+serial solution to problems are often much easier to develop than efficient parallel systems.
+Efficient synchronization between processes is also, perhaps surprisingly, a difficult problem.
+
+
+Many modern programming languages aim for developer productivity. Many programming abstractions and
+runtime subsystems are introduced in the name of convenience; one of these is a memory management
+system, often refered to as a garbage collector. Despite the developer ergonimic inprovements such
+systems claim to improve, they often come at a cost: efficiency. Garbage collectors have to support
+a wide range of use cases, like both short-lived allocations of small objects \emph{and} bulk
+allocation of large objects, the overhead of a memory manager may be far from optimal.
+
+
+
+\subsubsection{Rust}
+
+Rust is a new programming language aiming to unify the developer ergonomics promised by managed
+languages, and the efficiency of unmamaged languages. The work of managing memory is left to the
+compiler, which at compile time analyses the program, and enforces certain rules about how memory
+is handled. This way the programmer does not need to manage memory in the traditional sense,
+although it does impose a cognitive overhead when developing programs, which larger than that of managed
+languages. One of the features of Rust that may make it viable for systems programmers with strong
+requirements for performance and stability is that the memory management system in Rust is fully
+controlled by the programmer, as there is no runtime.
+
+
+\section{This Thesis}
+
+In this thesis we aim to develop a concurrent memory management system for Rust called CMR\@, which
+is based on Forkscan~\ref{sec:forkscan}. We believe this is an interesting topic since it is not
+clear how to incoorporate memory management for concurrent system in the ownership model that Rust
+provides, although there are existing projects which does similiar things; these projects are often
+implementation of other known memory reclamation schemes like Hazard Pointers and Epoch-Based
+reclamation. This thesis develops a new scheme.
+
+Despite one of the promises that Rust makes is one of predictability and control, CMR works more
+like a traditional garbage collector. However, as the scheduling of threads in a process inherently
+is fuzzy and unpredictable, we believe that this is an intrinsic property of any concurrent memory
+reclamtion system.
+
+The aims for this thesis is to consider CMR as an alternative to more traditional methods for
+memory reclamation. The viability of such a management system is both performance and usability,
+and we will comment both.
+
+
+\section{Outline}
+
+We mention briefly the contents of each chapter. The chapters are also prefaced with a more fine
+grained introduction.
+
+\cref{ch:background} highlights the most important background material that is needed in order to
+appreciate the contents of this thesis. Much of the material is a part of a standard computer
+science curriculum, but we repeat it here nevertheless. Relevant sections from this chapter is
+cited in the remaining of the text.
+
+\cref{ch:rust} introduces the reader to the Rust programming language, in which the impementation
+of CMR is written. The way Rust functions makes it an integral part of how CMR is designed. While
+this could be considered background, itis its own chapter due to its importance for this project as
+a whole.
+
+\cref{ch:cmr} presents the memory management system CMR at a high level.  We look at primitives of
+CMR and common operations such as allocation and reclamation protection.  The chapter presents CMR
+on a high level in order to clearly differentiate the challenges of CMR from the challenges of
+implementing CMR on a real system in a real programming language. There is no real code in this
+chapter.
+
+\cref{ch:implementation} describes the implementation of CMR in Rust, including the most important
+primitives and procedures. With the exception of a few omitted code sections, which are clearly
+marked as such, all program code in this chapter is fully functionally Rust code taken from the
+impementation.
+
+\cref{ch:usage} contains example usage of CMR for external applications. We have implemented four
+data strucutres using CMR, and these four along with their implemetations are discussed further in
+this chapter.
+
+\cref{ch:methodology} mentiones practical matters when it comes to testing and benchmarking of the
+system. This is included in the thesis as it may be quite different from testing and benchmarking
+of sequential systems, or systems written at a higher abstraction layer.
+
+\cref{ch:results} discusses experimental results of both operations from CMR as well as the data
+structures from the previous chapter. We look at the performance on a range of different machines,
+from affordable desktop computers to high-end multiple socket server systems.
+
+\cref{ch:conclusion} concludes this thesis with a short summary of the results and discussion about
+the applicability and usability of the system as presented, in addition to suggestions for future
+work.

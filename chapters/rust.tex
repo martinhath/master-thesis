@@ -1,6 +1,6 @@
 \chapter{Rust\label{ch:rust}}
 \begin{epigraphs}
-  \qitem{Rust seems sensible}{\textit{John Carmack on Twitter}} 
+  \qitem{Rust seems sensible}{\textit{John Carmack on Twitter}}
   \qitem{If you rest, you Rust.}{\textit{Helen Hayes}}
 \end{epigraphs}
 
@@ -158,11 +158,21 @@ this cannot be send across thread boundaries safely, consider what happens if $T
 twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use atomics for
 performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race condition!
 
+Rust is marketed as a safe programming language; it is however important to realize that this is
+only a half-truth. In princible Rust, due to the \code{unsafe} keyword, is no more safe than any
+codebase in C or C++ is, and third party librarlies might hide the fact that they utilize
+\code{unsafe} code in order to appear more ``safe''. The language offers many ways to avoid having
+to type the dreaded six letters and enter the world where all bets are off, but nobody is stopping
+crate authors, co-workers, or even yourself, to write \code{unsafe} code.
+
 
 
 \section{Concurrency}
 
-bing bong
+One of the main focuses of Rust is concurrency, and the language does offer a helping hand in
+writing concurrent code; many of these arises naturally from the type system, and the ownership
+model, like the single owner principle, and the single mutable reference rule.
+
 
 \subsection{Concurrency and Aliasing\label{sec:concurrency-and-aliasing}}
 
@@ -211,9 +221,6 @@ then performing some operation on each element sequentially, with \code{rayon} w
 with any number of threads. Internally \code{rayon} uses a thread pool and work stealing to handle
 the division of labour among the threads.
 
-
-\fixme{09/05 12:32 Look at stuff from last semester. Move into std sec?}
-\subsection{Memory Orderings}
 
 \section{Nightly Rust}
 
@@ -295,7 +302,7 @@ mix in yet another trait, \code{Clone}, such that we have a third implementation
 impl<T: Clone> Trait for Struct<T> { ... }
 \end{lstlisting}
 it is no longer clear which implementation to use if \code{T} implements \emph{both} \code{Clone}
-and \code{Debug}. The current implementation forbids such implemementations.
+and \code{Debug}. The current implementation forbids such specializations.
 
 
 \subsection{Allocators\label{sec:allocators}}

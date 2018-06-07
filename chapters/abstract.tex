@@ -3,11 +3,21 @@
 {\centering\section*{Abstract}}
 \addcontentsline{toc}{chapter}{Abstract}
 
-\lorem{}
+Concurrent memory reclamation is the problem in deciding whether a memory allocation is still in
+use or not in a concurrent system.  This thesis presents a new system called CMR for the Rust
+programming language and proves its correctness.  We also show implementations of four concurrent
+data strctures using CMR\@.  Experimental results show that CMR may be viable for certain
+workloads, although intrinsic properties of the system may prevent it from general adoption.
+
 
 \vfill%
 {\centering\section*{Sammendrag}}
 
-\lorem{}
+Minnehåndtering i samtidige systemer er problemet å avgjøre om en minneallokasjon er i bruk i et
+system med samtidige utførelsestråder. Denne avhandlingen presenterer et nytt system kalt CMR for
+programmeringsspråket Rust, og bevisers dets korrekthet. Vi viser også implementasjoner av fire
+samtidige datastruktures som bruker CMR\@. Eksperimentelle resultater viser at CMR kan være
+forsvarlig for visse arbeidsmendger, til tross for at grunnleggende egenskaper ved systemet kan
+hindre generell adopsjon.
 
 \vfill\break%

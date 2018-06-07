@@ -1,0 +1,15 @@
+\begin{tikzpicture}
+\tikzset{btnode/.style={node distance=1cm, rectangle split, rectangle
+         split horizontal, rectangle split parts=3, draw, rounded
+         corners=0.05cm,font=\footnotesize}}
+
+  \node[btnode,label=above:{\code{BTNode}}] (bt-node) {};
+  \node   (left-child) [below of=bt-node,  xshift=-10mm] {\code{BTNode}};
+  \node   (right-child) [below of=bt-node, xshift=  6mm] {\code{BTNode}};
+
+  \draw [circlebase,-latex] ($(bt-node.west)!0.33!(bt-node.center)$) -- (left-child);
+  \draw [circlebase,-latex] (bt-node.center) -- (right-child);
+
+  \node[draw, node distance=2cm]  (str) [right of=bt-node] {\code{"foo"}};
+  \draw [circlebase,-latex] ($(bt-node.east)!0.33!(bt-node.center)$) -- (str);
+\end{tikzpicture}

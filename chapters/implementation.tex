@@ -37,19 +37,32 @@ Thread also stores data in \gls{tls}. Each thread maintains a \code{Vec} of poin
 \code{Guard}s, such that collecting all guards is just a matter of iterating through the
 \code{Vec}, and following the pointer. Since the data is thread local, no synchronisation is needed
 when operating on the \code{Vec}, which makes updates cheap.
-In addition all threads store the allocations they have done since the last reclamation pass. See
-\cref{sec:impl-signalvec}
+In addition all threads store the allocations they have done since the last reclamation pass;
+these allocations are ``stolen'' by the reclaiming thread in each pass. See
+\cref{sec:impl-signalvec} for the details.
 
 One caveat of CMR is that new threads needs to register themselves before using the system. This is
-done through \code{cmr::register_thread()}. This initialises thread local data, and pushes a
-thread handle used in \cref{sec:impl-snapshot}. See \cref{sec:impl-thread-registration} for
-information about thread registration.
+done through \code{cmr::register_thread()}. This initialises thread local data, and pushes a thread
+handle used in \cref{sec:impl-snapshot}. We summarize some of the problems in
+\cref{sec:impl-thread-registration}, and note that this is still a pain point of the
+implementation.
+
+Only one thread may be in a reclamation pass at any given time, and we limit this by having a
+global \code{reclaim_lock}. A thread wanting to reclaim grabs the lock before doing anything else
+in the reclamation procedure; this lock is later freed (see
+\cref{sec:impl-communication}). If a thread attempts to do a reclamation pass but finds that the
+lock is taken, it simply does not do the pass; waiting for the lock to be released would only
+increase the latency of the reclamation pass for that thread, and since a reclamation pass was
+recently performed, chances are that there will be very few new allocations to free in the pass.
 
 
 
 \section{Primitives\label{sec:impl-primitives}}
 
-Blabla
+In this section we present implementation of the primitives as presented in
+\cref{sec:cmr-primitives}, and show that the implementation is unifiable with the definitions of
+\cref{ch:cmr}. All \code{struct}s are shown with their full definitions, but we show only
+highlights of the methods of the \code{struct}s, as most of them are trivial.
 
 \subsubsection{Guard}
 
@@ -88,7 +101,7 @@ convert between types.  Implementation of remaining methods are straight forward
 
 \input{listings/atomic}
 
-
+\pagebreak
 \subsubsection{NullablePtr}
 
 \code{NullablePtr} is used as the canonical pointer type in CMR, and all pointer like types are
@@ -295,7 +308,7 @@ Using \gls{pthreads} signals we register a signal handler for the \code{SIGUSR1}
 \code{sigaction} call, and the reclaiming thread signals all threads with \code{pthread_sigqueue}.
 This is done through the Rust library \code{libc}, which provides Rust bindings to the C standard
 library. The procedure for signalling all registered threads is shown in
-\cref{lst:thread-signalling}. Here we actually do two things at once: in addition to signalling the
+\cref{lst:thread-signaling}. Here we actually do two things at once: in addition to signalling the
 threads, we remove the thread handlers that we fail to signal. The procedure returns the number of
 threads we successfully signalled, so the caller knows how many threads to expect being in the
 signal handler. Pseudo code for the signal handler is shown in \cref{lst:signal-handler}.
@@ -392,8 +405,23 @@ sample implementation for a node in a linked list.  This implementation uses \em
 \code{Trace} is different.
 
 \begin{figure}[ht]
+  \begin{subfigure}{0.5\textwidth}
+    \input{figures/trace}
+    \caption{Illustration of a \code{BTNode<String>}}
+  \end{subfigure}
+  \begin{subfigure}{0.5\textwidth}
+    \input{figures/trace2}
+    \caption{Illustration of a \code{BTNode<List>}}
+  \end{subfigure}
+  \caption{Generics influence the number of potential roots a type has, as shown here with a binary
+  tree node \code{BTNode<T>}. The \code{String} does not contain a root, but a node in a linked
+  list \code{LNode} does.}
+\end{figure}
+
+\begin{figure}[ht]
   \input{listings/trace}
 \end{figure}
+
 
 \code{Trace} contains default implementations of the two functions, such that primitive types can
 easily implement it. \code{write} takes a buffer, writes all pointers to it as \code{TraitObject}s,
@@ -423,15 +451,33 @@ The main difference between this and \code{Trace} is that CMR requires all types
 
 
 
+\section{Communication\label{sec:impl-communication}}
 
+When \code{fork}ing the child process continues the thread of the parent process that called
+\code{fork()}, such that it has access to everything that the original thread had.
+As such, we don't need to communicate from parent to child. However, the job of the child process
+is to run reachability analysis, and we do need its result. CMR uses \emph{memory map}
+(\cref{sec:memory-map}) for \gls{ipc}\@, which is set up before the fork. Since we need to
+know when the child is done writing its results, we write a marker word as the first word in
+the memory map. Then we \code{fork()}. The child process does the reachability analysis, and
+writes the result after marker in the memory map. When it is done writing, it overwrites the marker
+with the number of elements written.
 
+\begin{figure}[ht]
+  \centering
+  \input{figures/memmap}
+  \caption{Illustration of \gls{ipc} through a memory map. $T_2$ in the parent process is the
+  reclaiming thread, so $T_2$ is the one thread in the child process. Both processes have
+  access to the same memory in the memory map.}
+\end{figure}
 
-
-
-
-
-
-
+In order to minimize the delay of the reclamation pass from the point of view of the user, we spawn
+a background thread which handles the part of the reclamation performed after we \code{fork()}.
+This ensures that no user thread has to wait for the child process to finish its reachability
+analysis before going back to running application code.  After forking, the parent process
+unfreezes the other threads, and sends all necessary data to the background thread. Note that the
+\code{reclaim_lock} is not released, even though the thread is exiting the procedure. The lock is
+only released when the background thread is fully done with the reclamation pass.
 
 
 \section{Complications\label{sec:impl-complications}}
@@ -455,12 +501,11 @@ oblivious to CMR, from allocating.
 
 This problem is not solved properly by CMR, but its effects are mitigated by wrapping the general
 allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be aquired by
-the reclamating thread (this is why we have~\coderef{R3} in \cref{lst:reclaimer}).
-In order to be more thread friendly we do not grab the global lock every time we allocate; instead
-each thread flips a bit when they allocate, to signal to other threads that they might be holding
-some internal lock. Upon exit they flip the bit back. When some other thread wants to make sure
-that no thread is holding the lock, it flips a flag, and waits for all threads to have their bit
-set to zero. This is effectively a read-write lock.
+the reclamating thread.  In order to be more thread friendly we do not grab the global lock every
+time we allocate; instead each thread flips a bit when they allocate, to signal to other threads
+that they might be holding some internal lock. Upon exit they flip the bit back. When some other
+thread wants to make sure that no thread is holding the lock, it flips a flag, and waits for all
+threads to have their bit set to zero. This is effectively a read-write lock.
 
 The locking scheme prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads}
 internally for thread handling on Linux, which allocates internally, both in \code{spawn} and

@@ -1,0 +1,27 @@
+\begin{lstlisting}[
+  style=Rust,
+  label=lst:hashmap-remove,
+  caption=Implementation of \code{HashMap::remove}.,
+  numbers=left, numberstyle=\color{gray}\ttfamily{}HR,
+]
+impl<K, V> HashMap<K, V> {
+    pub fn remove(&self, k: &K) -> bool {
+        let (bucket, rev_hash) = self.bucket_and_revhash(k);
+        let curr: cmr::Ptr<_> = self.get_or_insert_bucket(bucket);
+        guards!(_curr, _prev, _en);
+        loop {
+            let mut entry = list::Entry::from_node_ptr(curr, _curr, _prev, _en);
+            let ret = entry.seek_with_opt(|data| 
+              if data.hash() > rev_hash { None } 
+              else { match data {
+                         &Entry::Value((h, ref key, _)) if h == rev_hash &&
+                                                           k == key => Some(true),
+                         _ => Some(false), } });
+            match ret {
+                Err(list::Error::Empty) => return false,
+                Err(_) => continue,
+                Ok(_) => {} }
+            if entry.delete().is_ok() { break; } }
+        self.count.fetch_sub(1, Ordering::SeqCst);
+        return true; } }
+\end{lstlisting}

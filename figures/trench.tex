@@ -1,0 +1,78 @@
+\begin{tikzpicture}[node distance=1cm]
+  \tikzset{n/.style={draw, minimum height=4mm, minimum width=4mm, rounded corners=0.5mm}}
+  \tikzset{sentinel/.style={fill=gray}}
+  \tikzset{arr/.style={draw, minimum height=5mm, minimum width=5mm, inner sep=0cm, outer sep=0cm,
+  node distance=5mm}}
+
+  \node (hm-label)  {\code{HashMap}};
+
+  % First line linked list
+  \node[n, sentinel, node distance=7mm] (n11) [below of=hm-label] {};
+  \node[n]           (n12) [left of=n11] {};
+  \node[n]           (n13) [left of=n12] {};
+  % Second line linked list
+  \node[n, sentinel] (n21) [below of=n11] {};
+  \node[n]           (n22) [left of=n21] {};
+  % Third line linked list
+  \node[n, sentinel] (n31) [below of=n21] {};
+  \node[n]           (n32) [left of=n31] {};
+  \node[n]           (n33) [left of=n32] {};
+  \node[n]           (n34) [left of=n33] {};
+  % Fourth line linked list
+  \node[n, sentinel] (n41) [below of=n31] {};
+
+  % First line arrows
+  \draw[-latex] (n11.west) -- (n12.east);
+  \draw[-latex] (n12.west) -- (n13.east);
+  \draw[-latex] (n13.south) |- ($(n13.south)!0.5!(n21.north)$) -| (n21.north);
+  % Second line arrows
+  \draw[-latex] (n21.west) -- (n22.east);
+  \draw[-latex] (n22.south) |- ($(n22.south)!0.5!(n31.north)$) -| (n31.north);
+  % Third line arrows
+  \draw[-latex] (n31.west) -- (n32.east);
+  \draw[-latex] (n32.west) -- (n33.east);
+  \draw[-latex] (n33.west) -- (n34.east);
+  \draw[-latex] (n34.south) |- ($(n34.south)!0.5!(n41.north)$) -| (n41.north);
+
+  \node[arr, node distance=1.6cm]        (a1) [right of=n11] {};
+  \node[arr]                             (a2) [below of=a1]  {};
+  \node[arr]                             (a3) [below of=a2]  {};
+  \node[arr]                             (a4) [below of=a3]  {};
+
+  \draw[circlebase,-latex] (a1.center) -- (n11.east);
+  \draw[circlebase,-latex] (a2.center) -| ($(a2.west)!0.66!(n31.east)$) |- (n31.east);
+  \draw[circlebase,-latex] (a3.center) -- (n21.east);
+  \draw[circlebase,-latex] (a4.center) -| ($(a4.west)!0.33!(n41.east)$) |- (n41.east);
+
+  \node[inner sep=4mm, draw, fit={(n34) (n41) (hm-label) (a4)},
+        label=above:Global Shared State] (border) {};
+
+  \node[draw, node distance=4cm] (f1) [right of=hm-label] {\code{fn()}};
+  \node[draw, node distance=2cm] (r1) [right of=f1] {\code{RandomSource}};
+  \node[node distance=1.6cm]       (l1) [right of=r1] {$T_1$};
+  \node[draw, fit={(f1) (l1)},label=above:Thread local mutable state] {};
+  \draw[-latex] (f1.east) -- (r1.west);
+  \draw[-latex] (f1.west) -- (f1 -| border.east);
+
+  \node[draw, node distance=1.3cm] (f2) [below of=f1] {\code{fn()}};
+  \node[draw, node distance=2cm] (r2) [right of=f2] {\code{RandomSource}};
+  \node[node distance=1.6cm]       (l2) [right of=r2] {$T_2$};
+  \draw[-latex] (f2.east) -- (r2.west);
+  \draw[-latex] (f2.west) -- (f2 -| border.east);
+  \node[draw, fit={(f2) (l2)}] {};
+
+  \node[draw, node distance=1.3cm] (f3) [below of=f2] {\code{fn()}};
+  \node[draw, node distance=2cm] (r3) [right of=f3] {\code{RandomSource}};
+  \node[node distance=1.6cm]       (l3) [right of=r3] {$T_3$};
+  \draw[-latex] (f3.east) -- (r3.west);
+  \draw[-latex] (f3.west) -- (f3 -| border.east);
+  \node[draw, fit={(f3) (l3)}] {};
+
+  \node[draw, node distance=1.3cm] (f4) [below of=f3] {\code{fn()}};
+  \node[draw, node distance=2cm] (r4) [right of=f4] {\code{RandomSource}};
+  \node[node distance=1.6cm]       (l4) [right of=r4] {$T_4$};
+  \draw[-latex] (f4.east) -- (r4.west);
+  \draw[-latex] (f4.west) -- (f4 -| border.east);
+  \node[draw, fit={(f4) (l4)}] {};
+
+\end{tikzpicture}
