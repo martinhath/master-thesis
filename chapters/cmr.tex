@@ -181,8 +181,8 @@ reachable blocks $R$. We can then find $G$.
 \section{Primitives of CMR\label{sec:cmr-primitives}}
 
 In this section we look at the four data types in CMR, and operations that act on them. All types
-are generic over some type $T$, which is omitted for brevity. The operations on these types do not
-change the generic type.
+are generic over some type $T$, which is omitted for brevity. The operations on these types 
+always act on the same generic type. We use \nullptr to signal the null-pointer.
 
 \begin{definition}[\egn{Guard}\label{def:guard}]
   \egn{Guard} is an object that either contains a root or \nullptr. The \egn{Guard} is non-movable
@@ -224,7 +224,7 @@ A Guard can be constructed with the initial value of $\bot$ with \emph{make-guar
 \begin{equation}\label{eq:make-guard}
   \proc{Make-Guard}\typeof{} () \to \id{Guard}
 \end{equation}
-It can also copy the value of another Guard with \emph{copy-guard}.
+It can copy the value of another Guard with \emph{copy-guard}.
 \begin{equation}\label{eq:copy-guard}
   \proc{Copy-Guard}\typeof{} (\id{Guard}, \id{Guard}) \to ()
 \end{equation}
@@ -260,8 +260,9 @@ pointers. Whether the pointer is null or not can be checked:
   \proc{Is-Null}\typeof (\id{NullablePtr}) \to \id{bool}
 \end{equation}
 
-Ptr may be used in the place of NullablePtr, since is it just a special case of it. All functions
-that take a NullablePtr can also take a Ptr.
+The Ptr is the type that mimics reference types in other languages; the object it points to is used
+transparently through the Ptr. Ptr may be used in the place of NullablePtr, since is it just a
+special case of it. All functions that take a NullablePtr can also take a Ptr.
 
 
 
@@ -294,6 +295,8 @@ system. In this section we may assume that no reclamation pass is happening with
   \label{def:load-atomic-no-reclamation}
   No reclamation happens while the procedure \proc{Load-Atomic} is running.
 \end{claim}
+
+With this assumption in place we finally prove the correctness of CMR\@.
 
 \begin{lemma}
 If a \egn{Guard} is valid, then any \egn{Ptr} read from it is valid.
@@ -331,17 +334,17 @@ If a \egn{Guard} is valid, then any \egn{Ptr} read from it is valid.
 \cref{lm:no-uaf} and \cref{lm:no-df} follows, which guarantees that neither of the three memory
 hazards defined in \cref{sec:cmr-primitives} are possible in CMR.
 
-\begin{lemma}\label{lm:no-uaf}
+\begin{theorem}\label{lm:no-uaf}
   CMR has no \egn{use-after-free} or \egn{invalid-read}
-\end{lemma}
+\end{theorem}
 \begin{proof}
   This follows from \cref{lm:ptr-valid} as all accesses to shared memory are through a \egn{Ptr}
   (\cref{def:ptr}).
 \end{proof}
 
-\begin{lemma}\label{lm:no-df}
+\begin{theorem}\label{lm:no-df}
   CMR has no \egn{double-free}
-\end{lemma}
+\end{theorem}
 \begin{proof}
   $G \gets A \setminus R$ so only allocated addresses are freed. $A_{i+1} \gets R$, so freed
   addresses are discarded from $A$ in each call to \proc{Reclaim}.

@@ -7,6 +7,11 @@ In this chapter we briefly sum up the most important background material we depe
 Parts of the material is covered in a standard computer science education, but we will summarize it
 nevertheless.
 
+We will mention operating systems in \cref{sec:background-os}, notes on programming languages in
+\cref{sec:background-pl}, concurency in general in \cref{sec:background-concurrency}, and memory
+reclamation in \cref{sec:background-memory-reclamation}. The chapter ends whith a short note on
+related works in \cref{sec:background-related}
+
 
 \cref{sec:background-rc,sec:background-ebr,sec:background-hazard} and parts of
 \cref{sec:background-related} are taken from~\cite{semester}.
@@ -14,7 +19,7 @@ nevertheless.
 \clearpage
 
 
-\section{Operating Systems}
+\section{Operating Systems\label{sec:background-os}}
 
 The operating system is one of the most crucial parts of a modern computer.  The functionality the
 operating system provides is generally an abstraction layer over the hardware of the machine, but
@@ -46,19 +51,18 @@ map a file, which maps the contents of the file to the virtual address space of 
 the program can read and write to the memory directly, and have the operating system take care of
 mirroring the changes to the file, which resides on disk.  The main motivation behind memory
 mapping a file is to abstract away the fact that the underlying data is not all in memory, but may
-be read and written to incrementally.
-
+be read and written to incrementally. Another alternative is \emph{anonymous} memory maps; this is
+a memory without that is not backed by a file. This is often used internally by allocators.
 
 \subsection{Threads and Processes}
 
 Operating systems run programs as \emph{processes}. A process have a unique address space, in which
 only the process itself can operate\footnote{this is a truth with modifications; the kernel has
-naturally the privilege to touch all memory it pleases.}.
-While not so common in modern programming, a common pattern in handling processes is
-\emph{forking}, where the process clones itself, and both copies, the child and parent process,
-continue their execution. This is an excellent application of the \gls{cow} semantics of page
-cloning as mentioned in \cref{sec:background-virtual-memory}, since the entire address space of the
-process is copied.
+naturally the privilege to touch all memory it pleases.}.  While not so common in modern
+programming, a common pattern in handling processes is \emph{forking}, where the process clones
+itself, and both copies, the child and parent process, continue their execution. This is an
+excellent application of the \gls{cow} semantics of page cloning, since the entire address space of
+the process is copied.
 
 Each executing process may have multiple execution units called \emph{threads}. The main difference
 between threads and processes is that a process have its own address space whereas a thread does
@@ -89,22 +93,22 @@ threads within the sending process.
 Programming languages have been a hot topic since the birth of computing; we have always been
 interested in being able to express our intent for the computer clearly and effectively. Despite
 computing being a field of growing experience, new programming languages are still introduced by
-the dozen, and programming languages that are older than the average programmer are still in heavy
-use.
+the dozen, while programming languages that are older than the average programmer are still in
+heavy use.
 
 Many programming languages have a formal specification to specify the operational semantics of the
 language constructs, as well as guarantees of what subroutines and data types are generally
 available, in addition to details about said subroutines and data types. Having a specification of
 the programming language one uses can greatly improve security, predictability, and stability of
-language implementations, such as compilers or run-times.
+language implementations such as compilers or run-times.
 
-Sometimes it may be wiser for language designers not to define parts of the language; many parts of
-any language is heavily introduced by the features or constraints of the hardware of the era that
-the language is defined in. For instance, as the C programming language was designed, having an own
-data type for floating point numbers \code{float} and \code{double} might not have been obvious,
-considering that few machines supported them. Being faced with the same choice today is quite
-different --- no modern programming language ships without native support for floating point
-numbers.
+Sometimes it may be wiser for language designers \emph{not} to define parts of the language; many
+parts of any language is heavily influenced by the features or constraints of the hardware of the
+era that the language is defined in. For instance, as the C programming language was designed,
+having an own data type for floating point numbers \code{float} and \code{double} might not have
+been obvious, considering that few machines supported them. Being faced with the same choice today
+is quite different --- no modern programming language ships without native support for floating
+point numbers.
 
 There are usually gray zones of the definitions of parts of programming languages. For instance, in
 the C and C++ world it is common to differentiate between \emph{implementation defined}, meaning an
@@ -128,11 +132,12 @@ Good introductions to the trade-offs regarding \gls{ub} includes
 
 \subsection{Garbage Collectors}
 
-Another important distinction in programming languages are \emph{managed} and \emph{unmanaged}
-languages. The former usually refers to languages in which memory management is abstracted away by
-having a runtime with a subsystem that manages memory allocation and reclamation automatically; such
-a system is often refereed to as a \emph{Garbage Collector}. Most of the mainstream programming
-languages today, including Python, Ruby, Java, Go, Javascript, and C\#, are managed languages.
+Another important distinction in programming languages is between \emph{managed} and
+\emph{unmanaged} languages. The former usually refers to languages in which memory management is
+abstracted away by having a runtime with a subsystem that manages memory allocation and reclamation
+automatically; such a system is often refereed to as a \emph{Garbage Collector}. Most of the
+mainstream programming languages today, including Python, Ruby, Java, Go, Javascript, and C\#, are
+managed languages.
 
 There are many variations of garbage collectors. The most common is the \emph{tracing garbage
 collector}, where the system traces memory addresses through the application memory in order to
@@ -144,7 +149,7 @@ not in use may be quite high.
 
 
 
-\section{Concurrency}
+\section{Concurrency\label{sec:background-concurrency}}
 
 Modern hardware and operating systems makes heavy use of concurrency; processes are continuously
 preempted in order to have more processes executing than processors available on the system.  When
@@ -189,7 +194,21 @@ $n+1$, and then become preempted before writing the value back to the original m
 Then $T_2$ gets execution time, and records successfully $m$ events. Now, the next time $T_1$ is
 ran, it will write $n+1$ to the location, which will effectively remove the $m$ events that $T_2$
 counted. One of the most important atomic instructions is the \code{compare_and_swap(l, a, b)},
-which reads a location $l$, and writes $b$ to it, if it read $a$.
+which reads a location $l$, and writes $b$ to it, if it read $a$. The \proc{cas} shows the
+operation, which is all done atomically. Variations of \proc{cas} returns $x$ rather than a boolean
+signaling sucecsss, as this can be checked with $x \isequal o$.
+
+\begin{codebox}
+\Procname{$\proc{cas}(l, o, n)$}
+  \li $x \gets \proc{Load}(l)$
+  \li \If $x \isequal o$ 
+  \Then
+    \li $\proc{Write}(l, n)$
+    \li \Return $\id{true}$
+  \li \Else
+    \li \Return $\id{false}$
+  \End
+\end{codebox}
 
 \subsection{Common Patterns in Concurrent Programming\label{sec:common-patterns}}
 
@@ -217,7 +236,7 @@ fails, that is the read value was different, we restart. Often operations look l
 \begin{codebox}
 \Procname{$\proc{Lock-Free-Op}(l)$}
 \li \While \Then
-\li $m = \proc{Read(l)}$
+\li $m \gets \proc{Read(l)}$
 \li $\lit{some operation yielding a result $x$}$
 \li \If $\proc{cas}(l, m, x)$ \Then
 \li \Return
@@ -227,7 +246,7 @@ fails, that is the read value was different, we restart. Often operations look l
 \subsection{The ABA-Problem\label{sec:aba-problem}}
 
 However, there are pitfalls to this approach. Occasionally checking that the location $l$ still has
-its value $a$ might not be sufficient to see that the remaining of the program is in the state that
+its value $m$ might not be sufficient to see that the remaining of the program is in the state that
 one expects. This problem is called the \emph{ABA-Problem}.
 
 Consider the following real world analogy: assume you have an opaque bottle that is filled with
@@ -247,7 +266,7 @@ not practical. Other alternatives include transactional memory, but this is not 
 thesis.
 
 
-\section{Memory Reclamation}
+\section{Memory Reclamation\label{sec:background-memory-reclamation}}
 
 Most programs require blocks of memory which size is only known at runtime, but the operating
 system usually only deals with memory in pages. Memory allocation is a system designed to unify the
@@ -403,7 +422,7 @@ covered in this report) into the C++ standard library was released in November 2
 There is also ongoing work in managed languages, despite the presence of a garbage collector. An
 example is Project
 Snowflake~\cite{project-snowflake-non-blocking-safe-manual-memory-management-net} which combines
-ideas from both EBR and HP to get more efficient reclamation for concurrent systems on the\@.NET
+ideas from both EBR and HP to get more efficient reclamation for concurrent systems on the\ .NET
 platform.
 
 

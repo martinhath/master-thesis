@@ -14,6 +14,7 @@ chapter;
 implemented;
 \cref{sec:impl-reachability} describes the reachability analysis including important details of the
 Rust type system;
+\cref{sec:impl-communication} mentines how communication between the parent and child prrocess;
 we finish the chapter with \cref{sec:impl-complications} where we highlight a few of the
 complications that we encountered during the implementation of CMR.
 
@@ -85,7 +86,8 @@ for calling \code{new} directly. Usage of the guard is normally as follows:
 {
   guard!(g);
   let my_num = cmr::alloc(123, g);
-} // `g` is dropped here
+  println!("{}", my_num); // prints `123`
+} // `g` is dropped here, and `my_num` is ripe for deallocation
 \end{lstlisting}
 Note that by using \code{guard!}, the caller only obtains a \code{\&mut Guard<T>}, and not the
 \code{Guard<T>} itself; this makes it impossible to move the \code{Guard} in memory.
@@ -134,11 +136,11 @@ impl<'a, T> NullablePtr<'a, T> {
 \subsubsection{Ptr}
 
 \code{Ptr} provides access to the type it points to, as it is guaranteed to be non-\code{null}.
-This is done through the \code{Deref} trait, which handles the \code{*} in Rust. Due to auto-deref,
-we can now use \code{\&Ptr<T>} in place of a \code{\&T}. The definition of \code{Ptr}, a new of its
-methods, and its \code{Deref} implementation is shown in \cref{lst:def-ptr}. Node that both
-\code{new} and \code{get_mut} are \code{unsafe} methods; \code{new} because we can not guarantee
-that the address passed is valid, and \code{get_mut} because the data may be aliased.
+This is done through the \code{Deref} trait, which handles the \code{*} operator in Rust. Due to
+auto-deref, we can now use \code{\&Ptr<T>} in place of a \code{\&T}. The definition of \code{Ptr},
+a new of its methods, and its \code{Deref} implementation is shown in \cref{lst:def-ptr}. Node that
+both \code{new} and \code{get_mut} are \code{unsafe} methods; \code{new} because we can not
+guarantee that the address passed is valid, and \code{get_mut} because the data may be aliased.
 
 \begin{figure}[ht]
   \begin{lstlisting}[style=Rust,label=lst:def-ptr,
@@ -205,9 +207,9 @@ With the ability to run arbitrary code without a reclamation pass happening in b
 implement \code{guard}, which is \proc{Load-Atomic} (\cref{eq:load-atomic}).
 \begin{lstlisting}[style=Rust]
 pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T> {
-    without_reclamation(|| { let p = unsafe { a.load(SeqCst) };
-                             guard.inner = ptr::raw(p);
-                             p }) }
+    without_reclamation_repeat(|| { let p = unsafe { a.load(SeqCst) };
+                                    guard.inner = ptr::raw(p);
+                                    p }) }
 \end{lstlisting}
 Since we guarantee that no pass happened in between reading the \code{Atomic} and protecting the
 data it pointed to in the \code{Guard}, we know that the data is still valid.
@@ -235,7 +237,7 @@ We argue for the correctness of the primitives as presented with respect to the 
 
 
 \begin{claim}
-  \cref{def:load-atomic-no-reclamation} is attainable.
+  \cref{def:load-atomic-no-reclamation} is achievable.
 \end{claim}
 \begin{proof}
   \code{guard} implements \proc{Load-Atomic} with the wanted semantics.
@@ -538,302 +540,3 @@ using lazy initialization of thread local variables, but controlling allocations
 guaranteeing the order of initialization was problematic. Testing with continuously checking whether
 the thread was initialized in CMR methods showed that it imposed too much overhead for the strategy
 to be viable.
-
-
-
-
-
-
-
-
-
-% \clearpage
-% \clearpage
-% \clearpage
-%
-% Recall the \proc{Reclaim} procedure from \cref{ch:cmr}. In \cref{sec:impl-snapshot} we look at how
-% the snapshot mechanism is implemented. \cref{sec:impl-thread-data} discusses
-%
-% We look at four things: how thread
-% freezing is implemented (\cref{sec:signals}), how reachability analysis is done
-% (\cref{sec:reachability}), thread and process intercommunication
-% (\cref{sec:thread-communication}), and how the primitives and operations as defiend in
-% \cref{ch:cmr} are implemented (\cref{sec:data-types}).
-%
-%
-% \section{The Reclaimer\label{sec:thread-communication}}
-%
-% There is only at most one reclaimer at any time. The first thing a potential reclaiming thread
-% tries to do, is take the lock~\coderef{R2}. Then we take another lock that is used for
-% allocation~\coderef{R3} (see \cref{sec:alloc-lock}). This may block, but since we have not
-% frozen any threads yet, any thread holding the lock will eventually release it, assuming it itself
-% is not deadlocked. Next we initialize shared variables, such as the counters used by threads in
-% their signal handler. After they are initialized, we freeze all threads~\coderef{R5}, and count how
-% many threads were successfully frozen, which is used in~\coderef{R6} where we wait on all threads
-% to finish their job. When done, the data that the threads write out, their \code{Guard}s and
-% allocations, are read~\coderef{R7}.
-%
-% \begin{figure}[ht]
-%   \begin{lstlisting}[
-%     style=Rust,
-%     numbers=left,
-%     numberstyle=\color{gray}\ttfamily{}R,
-%     caption=Pseudocode of the work of the reclaimer,
-%     label=lst:reclaimer,
-%   ]
-% run_reclaim_pass() {
-%     if reclaim_lock.lock().fail() { return }
-%     lock_malloc()
-%     init_shared_vars()
-%     n = freeze_threads()
-%     while sh_done_counter.load() != n { wait() }
-%     (guards, allocs) = read_thread_datas()
-%     memory_map = mmap()
-%     write_marker(memory_map)
-%     if fork() == Child {
-%         rs = find_reachable()
-%         write_to_mmap(rs, memory_map)
-%         exit(0) }
-%     sh_frozen.store(false)
-%     send_to_background_thread(allocs, memory_map) }\end{lstlisting}
-% \end{figure}
-%
-% When \code{fork()}ing the child process continues the thread of the parent process that called
-% \code{fork()}, such that it has access to everything that the original thread had\fixme{rewrite}.
-% As such, we don't need to communicate from parent to child. However, the job of the child process
-% is to run reachability analysis, and we do need its result. CMR uses \emph{memory map}
-% (\cref{sec:memory-map}) for \gls{ipc}\@, which is set up before the fork. Since we need to
-% know when the child is done writing its results, we write a \emph{marker} word as the first word in
-% the memory map. Then we \code{fork()}. The child process does the reachability analysis, and
-% writes the result after marker in the memory map. When it is done writing, it overwrites the marker
-% with the number of elements written.
-%
-% \begin{figure}[b]
-%   \centering
-%   \input{figures/memmap}
-%   \caption{Illustration of \gls{ipc} through a memory map. $T\sb{2}$ in the parent process is the
-%   reclaiming thread, so $T\sb{2}$ is the one thread in the child process. Both processes have
-%   access to the same memory in the memory map.}
-% \end{figure}
-%
-% In order to minimize the delay of the reclamation pass from the point of view of the user, we spawn
-% a background thread which handles the part of the reclamation performed after we \code{fork()}.
-% This ensures that no user thread has to wait for the child process to finish its reachability
-% analysis before going back to running application code.  After forking, the parent process
-% unfreezes the other threads, and sends all necessary data to the background thread. Note that the
-% \code{reclaim_lock} is not released, even though the thread is exiting the procedure. The lock is
-% only released when the background thread is fully done with the reclamation pass.
-%
-% \section{Thread Freezing\label{sec:signals}}
-%
-% \emph{Signals} is a process communication mechanism used by POSIX compliant operating systems.
-% \gls{pthreads} also supports signaling for communication between threads in a
-% process. We utilize this in order to implement thread freezing, by registering a signal handler for
-% the signal \code{SIGUSR1}. Pseudocode for the signal handler CMR uses is shown in
-% \cref{lst:guard-impl}. The signal handler is registered with the \code{sigaction}
-% function, and threads are signaled with \code{pthread_sigqueue}.
-%
-% \begin{figure}[b]
-%   \begin{lstlisting}[
-%     style=Rust,
-%     numbers=left,
-%     numberstyle=\color{gray}\ttfamily{}SH,
-%     caption=Pseudocode for the signal handler used by CMR,
-%     label=lst:signal-handler,
-%   ]
-% if is_in_cleanup:
-%     clean_up_and_return()
-% id = sh_enter_counter.fetch_add(1)
-% write_out_data_to(thread_datas[id])
-% sh_done_counter.fetch_add(1)
-% while sh_frozen.load():
-%     wait()
-% sh_enter_counter.fetch_sub(1)\end{lstlisting}
-% \end{figure}
-%
-% We use \code{sh_enter_counter} to keep track of how many threads are present in the signal handler;
-% the reclaimer knows how many threads it succesfully signaled, so it knows how many threads to
-% expect. \coderef{SH3} registers a threads presence, in addition to giving each thread a unique
-% index in the range $[0, n)$, where $n$ is the number of threads signaled. This is used
-% in~\coderef{SH4}, where each thread writes out their guards and allocations into the global vector
-% \code{thread_datas}. We then register that we have written our data~\coderef{SH5}, and wait for the
-% reclaimer to unfreeze us~\coderef{SH6}.
-% \fixme{Since we don't know that we have exited the handler after SH6, do we really need SH7??}
-%
-%
-%
-% The signal handler is registered by a thread with a call to the \code{thread_activate} procedure,
-% which must be called before the thread is using CMR\@. \fixme{bench automation of this in Guard or
-% something?}
-% The system has a fixed upper bound on the number of threads that may be active at any time, through
-% the \code{thread_datas} vector, which is pre-allocated with a fixed size \fixme{check this out}.
-%
-% Since a thread handler may have registered it leaving by decrementing \\\code{sh_enter_counter},
-% but then preempted before leaving the handler, CMR uses \\\code{pthread_sigqueue} instead of the more
-% standard \code{pthread_kill}, as \gls{pthreads} may simply ignore a signal that is sent to a
-% thread when that thread is already in the signal handler for a given signal.
-% This is problematic, since the reclaimer keeps carefully track of where threads are in their
-% handler, and waits for all threads to reach certain checkpoints. If the reclaimer is lead to
-% believe that a thread just entered the handler when in fact it was just leaving, it will lead to a
-% deadlock.
-%
-%
-% \section{Reachability\label{sec:reachability}}
-%
-% Reachability analysis is done through a standard mark-and-sweep algorithm. The reclaimer collects
-% all roots from all active threads, and looks through the memory of each data type that is pointer
-% to by the roots. If any data type contains a \code{Guard} or \code{Ptr}, the address is marked as seen,
-% and added to the frontier. When the frontier is empty, we have registered all reachable memory.
-%
-% Finding pointers in arbitrary data types might involve significant work since the size of the data
-% types can be arbitrarily large. in addition to that memory might not be initialized, and false
-% positives. Instead of scanning through the memory block linearily, \fixme{should write somewhere why
-% we can assume that the ptr is the start of a block} CMR has a Trait called \code{Trace}, which all
-% data types that is in shared memory must implement.  A type implementing \code{Trace} knows a bound
-% on how many shared memory pointers it contains, and can write these out to a buffer. For instance,
-% a \code{Node} in a single linked list contains only one pointer, namely its next pointer, which is
-% trivial to write out.
-%
-% The implementation of this uses \emph{Trait Objects} (\cref{sec:trait-objects}), which involves
-% dynamic dispatch. This solution is potentially expensive, as it may involve cahce misses in the
-% I-cache, although the number of misses is limited by the difference in data types in shared memory,
-% which normally is smaller than in Rust memory.
-%
-% \begin{figure}[ht]
-%   \input{listings/trace}
-% \end{figure}
-%
-% \code{Trace} contains default implementations of the two functions, such that primitive types can
-% easily implement it. \code{write} takes a buffer, writes all pointers to it as \code{TraitObject}s,
-% and returns the number of objects written. \code{count} gives an upper bound on the number of
-% pointers written. This is useful for collection types, like \code{Vec} or \code{HashMap}, which
-% also may contain pointers to shared memory.
-%
-% \code{Node} is a standard node from a linked list, containing \code{data}, and a \code{next}
-% pointer. The implementation of \code{write} loads the \code{next} pointer~\coderef{T12}, which is
-% an \code{unsafe} operation, as there is no \code{Guard} protecting the pointer. This is safe in the
-% context of the reclaimer since the memory will be freed at earliest when we finish the reachability
-% analysis, and at that point we no longer read the memory. The implementation only writes out the
-% pointer if it is non-null. While this is not required for CMR to function, it simplifies the logic
-% in the reachability analysis.
-%
-%
-% \section{Data Types\label{sec:data-types}}
-%
-% In this section we look at the concrete Rust implementation of selected data types and operations,
-% and argue for their correctness.
-%
-%
-% \subsubsection{Guard}
-%
-% The \code{Guard} is implemented as a single word, in addition to an empty type (the
-% \code{PhantomData}) as Rust \emph{requires} generic types to be used. \code{Guard}s aren't normally
-% constructed directly (\fixme{non movable types somewhere}), but rather declared with the
-% \code{guard!} macro, which constructs it and calls \code{Guard::register}.
-% An excerpt of the definitions of \code{Guard} is shown in \cref{lst:guard-impl}.
-%
-% \input{listings/guard}
-%
-% \fixme{rewrite, focus on \code{register}}
-%
-% Since we need to keep track of type information dynamically, we construct a \code{GuardPointer}
-% which does exactly this, and pushes it onto a thread local \code{Vec}, \code{ROOTS}.  It is also
-% possible to construct a \code{NullablePtr} from the \code{Guard}.  The \code{guard!} macro corresponds
-% to make-guard (\cref{eq:make-guard}). copy-guard (\cref{eq:copy-guard}) is shown in the Listing.
-%
-% Using a macro for declaring \code{Guard}s is a trick that serves two purposes:
-% \begin{enumerate*}[1) ]
-%   \item the user needs to write \code{unsafe} in order to make a \code{Guard} without calling
-%     \code{register} on it,
-%   and\item the user never gets a binding to a variable of type \code{Guard}, but only of type
-%     \code{\&mut Guard}, which prevents moving the \code{Guard}, hence fulfulling the requirement of a
-%     \code{Guard} being non-movable from \cref{def:guard}.
-% \end{enumerate*}
-%
-% In addition to the \code{guard!} macro for declaring new \code{Guard}s, CMR also defines the
-% \code{guard} \emph{procedure}, which loads an \code{Atomic} into a \code{Guard}.
-%
-%
-% \subsubsection{Atomic}
-%
-% \code{Atomic} is mainly a wrapper around Rusts \code{AtomicPtr}, although the internals differ
-% slightly. CMR defines its own type so that we can defide on the return types of certain functions.
-% We include the definition of the \code{struct}, as well as \code{cas}, the compare-and-swap
-% operation, in which we utilize some Traits from the Rust standard library to convert between types.
-% \fixme{write a little here}
-%
-% \input{listings/atomic}
-%
-%
-% \subsubsection{NullablePtr}
-%
-% \code{NullablePtr} is used as the canonical pointer type in CMR, and all pointer like types are
-% converted to \code{NullablePtr} using the \code{From} \code{Into} traits, which
-% handles coversion between types. For instance, we implement \code{From<*const T> for
-% NullablePtr<T>}. This way we can write functions that are generic over all types of pointers, so
-% that the user of CMR does not have to handle these conversions themselves. This is used in the
-% functions for pointer tagging, as well as the \code{cas} in \cref{lst:atomic} (the types \code{A}
-% and \code{B}). \cref{lst:tagging} shows some of the free functions for pointer tags that are
-% generic over different pointer types.
-%
-% \input{listings/tagging}
-%
-% \code{ones(k)} returns the bitmask with the \code{k} lower bits set, and \code{TAG_BITS} is a
-% predefined number of bits allowed to use for tagging for any pointer. We convert from \code{P} to
-% \code{NullablePtr} with \code{.into()} \coderef{TA2}.  In \code{with_tag} we need to use
-% \code{TryFrom}, which is a conversion trait that may fail. In CMR \code{Ptr<T>} implements
-% \code{TryFrom<NullablePtr>}, where the conversion fails if the \code{NullablePtr} is null. We
-% assert that this failure should never happen \coderef{TA9} with the rationale that if we converted
-% some type \code{P} into a \code{NullablePtr} and changed its tag, we should be able to convert back
-% to \code{P}, even though the conversion is not always possible in general.
-%
-%
-%
-%
-%
-% \subsubsection{Common Operations}
-%
-%
-% \fixme{08/05 15:42 Should talk somewhere about the registering process}
-% Note that we do not need consider a reclamation pass happening concurrently in \code{alloc},
-% despite there being a window in between the allocation and the pointers protection in the
-% \code{Guard}. This is because CMR only frees \emph{registered} addresses. Since we protect the
-% pointer in the \code{Guard} \coderef{A3} before registering it \coderef{A4}, the pointer will be
-% protected when it is registered, and hence is subject for decallocation.
-%
-%
-%
-% \section{Complications}
-% \fixme{10/05 18:30 SignalVec?}
-% \fixme{10/05 18:30 Initialization stuff?}
-% \fixme{something something pitfalls}
-% \lorem%
-%
-% \subsection{Locks in libc\label{sec:alloc-lock}}
-%
-% In order to protect programmers from deadlocks, POSIX defines a subset of functions as
-% \emph{async-signal safe}, meaning they are safe to call from a signal handler. Functions that are
-% async-signal safe includes \code{time()}, \code{open()}, and \code{mkdir()}, but it does \emph{not}
-% include \code{malloc()}. As such, allocation in signal handlers is not safe, and is a source of
-% deadlock bugs. This itself was not a large problem for CMR, as its signal handler did not require
-% any allocation. However, as threads are frozen by the reclaimer in a signal handler, it is also not
-% safe for the \emph{reclaimer} to call \code{malloc}, despite not being in a signal handler itself.
-% This is because some thread may be in the process of allocating memory, and have aquired a lock
-% internal to libc, right before being signaled. The thread is still holding the libc lock and is
-% frozen in its signal handler by the consolidator, which prevents \emph{all threads}, even those
-% oblivious to CMR, from allocating.
-%
-% This problem is not solved properly by CMR, but its effects are mitigated by wrapping the general
-% allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be aquired by
-% the reclamating thread (this is why we have~\coderef{R3} in \cref{lst:reclaimer}). This
-% prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads} internally for thread
-% handling on Linux, which allocates internally, both in \code{spawn} and \code{join}. The former may
-% be circumvented by aquiring the allocation lock before calling it, but this is no solution for the
-% latter, since the thread may depend on allocating before exiting.
-% \fixme{deactivate/reactivate around joins?}
-%
-% \fixme{add example or something here}
-%
-% \subsection{SignalVec}
-%
-% \subsection{Thread Registration}

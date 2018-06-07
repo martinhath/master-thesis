@@ -1,13 +1,13 @@
 \chapter{Conclusion\label{ch:conclusion}}
 \epigraph{Are we there yet?}{\textit{Unknown}}
 
-In this report we have presented CMR, a new memory reclamation system for concurrent systems, in
+In this thesis we have presented CMR, a new memory reclamation system for concurrent systems, in
 the Rust programming language. We have presented an abstract description of the system, and walked
 through the most important parts of the implementation. Then, we have shown usage code for the
 system, namely four concurrent lock-free data structures. After notes on practical matters of the
 implementation work, we have looked at experimental results of both CMRs primitive operations as
 well as the performance of the data structures implemented using CMR\@. What remains is a
-conclusion
+conclusion.
 
 \clearpage
 
@@ -20,7 +20,7 @@ of CMR often was quite significant; occasionally the functioning version of CMR 
 between Crossbeam and non-functioning CMR\@.  It is therefore fair to assume that much of the
 difference is due to the difference in implementation, as noted in \cref{sec:results-ds}. This was
 not always the case however, and there is clear use cases where CMR really shows a low overhead,
-namely low write-intensive workloads.
+namely low-write workloads.
 
 A pain point of CMR is that it depends on forking the process. While modern operating systems
 leverage \gls{cow} optimizations on such operations, these might still be very expensive.  Worse
@@ -66,7 +66,7 @@ in this thesis, much of the execution time is spent on allocation. For this reas
 sense to have a specialized allocator for, say, a data structure. The allocator would then have
 access to patterns, like the size of allocations, or the lifetime of objects. For instance, an
 allocator for a \code{Queue} of a certain type would always be the same, and the lifetime would
-often be the same as the allocation order. This might allow performance gains.
+often be the same as the allocation order. This might open for performance gains.
 
 Despite forking being a pain point of CMR, it might be possible to use the idea of a custom
 allocator to limit the pages in which shared memory resides. If we could limit the types of objects

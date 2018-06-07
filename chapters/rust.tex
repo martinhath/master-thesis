@@ -87,12 +87,12 @@ duration of the program execution in which some object is valid --- its lifetime
 lifetime of all variables at compile time the Rust compiler is able to catch errors such as
 returning function local variable addresses. \cref{lst:lifetimes} shows an example function
 attempting to do this.  \input{listings/lifetimes} Since Rust tracks the lifetime of all variables,
-it knows that the lifetime of \code{num} is the same as that of the function body. The lifetime of
-\code{r} is the same, as it is a reference to \code{num}. So when we try to return \code{r} in the
-last line of the function, Rust realizes that the lifetime of the reference we return ends its life
-at the end of the function; this is clearly not what we wanted, since it would make the returned
-reference dead on arrival. Compilation fails with the following error: \code{error[E0597]: `num`
-does not live long enough}.
+it knows that the lifetime of \code{num} is the same as that of the function body, since it lives
+on the function's stack frame. The lifetime of \code{r} is the same, as it is a reference to
+\code{num}. So when we try to return \code{r} in the last line of the function, Rust realizes that
+the lifetime of the reference we return ends its life at the end of the function; this is clearly
+not what we wanted, since it would make the returned reference dead on arrival. Compilation fails
+with the following error: \code{error[E0597]: `num` does not live long enough}.
 
 
 Although Rust programmers may have to think about the lifetime of the variables, they seldom have
@@ -114,7 +114,7 @@ field:
 \begin{lstlisting}[style=Rust]
 fn make<'x, 'y>(f: &'y File, n: &'x str) -> Person<'x> { ... }
 \end{lstlisting}
-This way we can convey the information that the resulting \code{Peron} should live as long as
+This way we can convey the information that the resulting \code{Person} should live as long as
 \code{n}, but may outlive the file \code{f}.
 
 
@@ -170,7 +170,7 @@ crate authors, co-workers, or even yourself, to write \code{unsafe} code.
 \section{Concurrency}
 
 One of the main focuses of Rust is concurrency, and the language does offer a helping hand in
-writing concurrent code; many of these arises naturally from the type system, and the ownership
+writing concurrent code. Many of these arises naturally from the type system, and the ownership
 model, like the single owner principle, and the single mutable reference rule.
 
 
@@ -178,7 +178,7 @@ model, like the single owner principle, and the single mutable reference rule.
 
 One observation to make from the reference rules as presented in \cref{sec:borrow-checker} is that
 since references are either aliased or mutable, then there can be no writes shared data between
-threads, in Safe Rust, even using atomics. While this is \emph{technically} true, the Rust standard
+threads in Safe Rust, even using atomics. While this is \emph{technically} true, the Rust standard
 library uses \code{\&T} and \code{\&mut T} slightly different than ``immutable'' vs ``mutable'' in
 this context: \code{\&T} means that the type may be shared between threads.
 
@@ -214,12 +214,12 @@ Since this can be implemented without any special compiler support, such crates 
 third party libraries.
 
 Another example is data parallelism: given some collection of data we want to iterate over the
-elements and perform some operation on each element. The Rust library \code{rayon} offers exactly
-this: parallel iterators. Instead of writing \code{vec.iter()} to iterate over a \code{Vec} and
-then performing some operation on each element sequentially, with \code{rayon} we can write
-\code{vec.par_iter()}, and get data parallelism for free. The operation is then ran in parallel
-with any number of threads. Internally \code{rayon} uses a thread pool and work stealing to handle
-the division of labor among the threads.
+elements and perform some operation on each element. The Rust library \code{rayon}~\cite{rayon}
+offers exactly this: parallel iterators. Instead of writing \code{vec.iter()} to iterate over a
+\code{Vec} and then performing some operation on each element sequentially, with \code{rayon} we
+can write \code{vec.par_iter()}, and get data parallelism for free. The operation is then ran in
+parallel with any number of threads. Internally \code{rayon} uses a thread pool and work stealing
+to handle the division of labor among the threads.
 
 
 \section{Nightly Rust}
@@ -293,9 +293,12 @@ Assume we want to implement the trait \code{Debug} for a struct that is generic 
 \code{T}: \code{Struct<T>}. We might want to have different implementations of \code{Debug}
 depending on whether the generic parameter \code{T} implements \code{Debug} or not.
 Specialization makes this possible.
+\clearpage
+\begin{figure}[ht]
 \input{listings/specialization}
+\end{figure}
 
-With only these two implementation it is clear which of the two we want for any type: if \code<T>
+With only these two implementation it is clear which of the two we want for any type: if \code{T}
 implements \code{Debug} we want the second, and if it does not, we want the first. However, if we
 mix in yet another trait, \code{Clone}, such that we have a third implementation
 \begin{lstlisting}[style=Rust]

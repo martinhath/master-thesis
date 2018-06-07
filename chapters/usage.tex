@@ -1,5 +1,7 @@
 \chapter{Usage of CMR\label{ch:usage}}
 
+\epigraph{An algorithm must be seen to be believed.}{\textit{Donald E. Knuth}}
+
 In this chapter we look at usage code for CMR\@. The goal of this chapter is twofold: we mainly
 want to look closer at how the abstractions that CMR provides are used and how difficult they are
 to use; we also believe that showing the implementations of the data structures we can further
@@ -81,6 +83,13 @@ The idea behind the queue is to have a sentinel node as the first node of the qu
 avoid difficult edge cases when the queue is empty. The sentinel node is the grayed out node in
 \cref{fig:msqueue}.
 
+\begin{figure}[b]
+\centering
+\input{figures/queue}
+  \caption{The Michael-Scott Queue. The first node in the queue is a sentinel
+  node.\label{fig:msqueue}}
+\end{figure}
+
 The \code{Node} and \code{MsQueue} struct definitions are omitted, as they are very similar to
 those of the \code{Stack}. The main difference is that in the \code{Queue} we maintain both the
 \code{head} and \code{tail}. The following invariants hold for the \code{Queue}: \code{head} is
@@ -94,6 +103,7 @@ to its similarity with \code{Stack::pop}.
 \input{listings/msqueue}
 \end{figure}
 
+
 We start out by declaring three \code{Guard}s \coderef{MS3}: one for the new node, one for the
 current tail, and one for the tails \code{next} node, which may be present.  We load \code{tail}
 \coderef{MS5}, and its \code{next} pointer \coderef{MS7}.  Since the Michael-Scott queue is always
@@ -106,13 +116,6 @@ to \code{cas} its next field from \code{null} to our new node \coderef{MS9}. If 
 results of the the \code{cas} where we set the tail to the node we just inserted; if this operation
 fails, it just means that some other thread came along and noticed that \code{tail} was not the
 real tail, and \code{cas}ed it to the last node \coderef{MS8}.
-
-\begin{figure}[ht]
-\centering
-\input{figures/queue}
-  \caption{The Michael-Scott Queue. The first node in the queue is a sentinel
-  node.\label{fig:msqueue}}
-\end{figure}
 
 
 
@@ -261,14 +264,13 @@ performance of lookups since the number of sentinel nodes we need to look at doe
 
 \cref{lst:hashmap-contains} shows the implementation of \code{HashMap::contains}. The
 implementation of utility functions such as \code{bucket_and_revhash} are omitted for brevity.  We
-find the \code{parent} node \coderef{HC4}, and use the \code{Entry} API from \code{List}
-\coderef{HC6} to look for the first node which hash and key is the same; if we encounter a node
-which hash is more than our node, we know that we have gone too far. \code{Entry::seek_with_opt}
-lets us break out of the search early by returning \code{None} \coderef{HC10}. If we find a node
-with both the right hash and the right key, we return \code{Some(true)} from the
-closure \coderef{HC11}, and \code{seek_with_opt} returns \code{Ok}. If we get back \code{Ok}, the
-search succeeded, so we return \code{true}, and \code{false} otherwise.
-\input{listings/hashmap-contains}
+find the parent node \coderef{HC4}, and use the \code{Entry} API from \code{List} \coderef{HC6} to
+look for the first node which hash and key is the same; if we encounter a node which hash is more
+than our node, we know that we have gone too far. \code{Entry::seek_with_opt} lets us break out of
+the search early by returning \code{None} \coderef{HC10}. If we find a node with both the right
+hash and the right key, we return \code{Some(true)} from the closure \coderef{HC11}, and
+\code{seek_with_opt} returns \code{Ok}. If we get back \code{Ok}, the search succeeded, so we
+return \code{true}, and \code{false} otherwise.  \input{listings/hashmap-contains}
 
 
 \subsection{Insert}
