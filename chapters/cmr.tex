@@ -78,7 +78,7 @@ may lead to these hazards.
 validity of pointers that are freed, although this is often not done in practice. It is not clear
 whether this is due to performance penalties of checking, or if it is primarily a legacy
 behaviour; POSIXs definition of \code{free} states that it is undefined behaviour to pass a
-non-allocated pointer to \code{free}\cite{posix}.
+non-allocated pointer to \code{free}~\cite{posix}.
 
 We aim to show that CMR guarantees that neither of the three memory hazards are possible.
 

@@ -7,8 +7,8 @@
 Rust \cite{rust} is a new programming language focusing on safety, performance, and concurrency.
 The official first stable release, Rust 1.0, was released in May 2015, and a new version of the
 language as well as the official compiler, \code{rustc}, is released every 6th week. The language
-is developed as an open source project on the version control platform GitHub\cite{github} by over
-2000 contributors as of May 2018\cite{rust-github}. The Rust project is organized into
+is developed as an open source project on the version control platform GitHub~\cite{github} by over
+2000 contributors as of May 2018~\cite{rust-github}. The Rust project is organized into
 \emph{teams}, such as the Core Team, the Compiler Team, and the Documentation Team. Many of the
 members of the Rust teams are Mozilla employees, and Mozilla officially sponsors the Rust project.
 The language has no formal specification, although all language changes are developed and
@@ -20,8 +20,8 @@ documented through an \gls{rfc} process. For a thorough introduction to Rust, se
 \section{Introduction}
 
 Rust is a compiled language with a minimal runtime, similar to C and C++. \code{rustc} uses
-LLVM\cite{llvm} as a compiler backend for code optimization and code generation. The performance of
-Rust code is very similar to that of C and C++\cite{rust-perf}; variations are often due to the
+LLVM~\cite{llvm} as a compiler backend for code optimization and code generation. The performance of
+Rust code is very similar to that of C and C++~\cite{rust-perf}; variations are often due to the
 lack of stable features like SIMD support, or from different compile time information given to LLVM
 by either language.
 
@@ -314,7 +314,7 @@ allocator feature. The feature defines a trait \code{GlobalAlloc} that defines f
 to \code{malloc} and \code{free} from libc, and a attribute \code{\#[global_allocator]} to select
 which allocator we want to use.
 
-The default allocator for Rust is jemalloc\cite{jemalloc}. By using other external crates we can
+The default allocator for Rust is jemalloc~\cite{jemalloc}. By using other external crates we can
 use either the default system allocator, or jemalloc wrapped in our own allocator. This can be
 useful if we want to do bookkeeping, gather statistics, or do any thread synchronization outside of
 the actual allocator we are using.

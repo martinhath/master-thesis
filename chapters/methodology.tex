@@ -17,7 +17,7 @@ have performed the benchmarks, which results are presented in \cref{ch:results}.
 Testing is an important part of software development. While formal methods have not yet made its
 way into the software development insdustry, simpler and more heuristic methods, like unit testing
 and integration testing, are widespread. However, while testing is useful to improve the quality of
-software, it is far from sufficient. As Edsger Dijkstra famously said\cite{buxton1970software}:
+software, it is far from sufficient. As Edsger Dijkstra famously said~\cite{buxton1970software}:
 \begin{displayquote}
 Testing shows the presence, not the absence of bugs
 \end{displayquote}
@@ -26,7 +26,7 @@ In the world of concurrent programming this is even less so. Many bugs are manif
 unfortunate\footnote{Some would call interleavings that reveal bugs fortunate} thread execution
 interleavings done by the scheduler. We try to reveal these interleavings by repeatedly running
 tests until our confidence that no such interleavings exists is sufficiently high. In addition, we
-run tests with tools such as Valgrind\cite{valgrind} and our own sanitizer (\cref{sec:sanitizer}).
+run tests with tools such as Valgrind~\cite{valgrind} and our own sanitizer (\cref{sec:sanitizer}).
 Tests were also ran with and without compiler optimizations, as these optimizations often reveal
 yet more bugs.
 
@@ -98,7 +98,7 @@ affected, and percentage wise changes to the reported data may get biased.
 
 
 In order to more effectively benchmark threaded applications in Rust, an open source benchmarking library
-called \code{trench}\cite{trench} was developed. The library handles thread management and state
+called \code{trench}~\cite{trench} was developed. The library handles thread management and state
 for the runs of the benchmark. Trench supports both mutable thread local state and immutable shared
 state between all threads.
 

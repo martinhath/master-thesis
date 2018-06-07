@@ -7,7 +7,7 @@ In this chapter we look at the expermental results of the system, both piecewise
 We start by summarizing the hardware that the benchmarks is ran on in \cref{sec:results-hw}. In
 \cref{ch:res-ops} we look at the overhead of the operations done by CMR\@. In \cref{sec:results-ds} we
 look at the performance of the data structuers implemented, with and without the overehead CMR, and
-compare them to alternatives in the Rust ecosystem, like Crossbeam\cite{crossbeam} and data
+compare them to alternatives in the Rust ecosystem, like Crossbeam~\cite{crossbeam} and data
 structures in the standard library wrapped in a \code{Mutex}.
 
 \clearpage
@@ -110,7 +110,7 @@ We compare the four hashmap variations:
 \begin{enumerate*}[1)]
   \item the hashmap from \cref{sec:usage-hashmap} (\code{cmr})
   \item the same hashmap, but with all operations of CMR to be no-ops (\code{cmr(noop)})
-  \item an external SkipList implementation from the Crossbeam project\cite{crossbeam-skiplist}
+  \item an external SkipList implementation from the Crossbeam project~\cite{crossbeam-skiplist}
     (\code{cb}) and
   \item \code{std::HashMap} wrapped in a \code{Mutex} (\code{std}).
 \end{enumerate*}

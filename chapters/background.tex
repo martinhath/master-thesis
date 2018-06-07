@@ -195,7 +195,7 @@ such as threads pools and the message passing pattern. A thread pool acts as a t
 given work to do it will manage the execution of the work on threads. The user of a thread pool
 does not need to know how this management functions, only that the work is executed concurrently,
 such that it hopefully utilizes the parallel nature of modern processors.  An often used idea in
-implementing a thread pool is \emph{work stealing}\cite{blumofe1999scheduling}, in which threads
+implementing a thread pool is \emph{work stealing}~\cite{blumofe1999scheduling}, in which threads
 have their list of work avaiable to the other threads, which may ``steal'' a part of their work,
 should they run out themselves.
 
@@ -239,7 +239,7 @@ architectures mitigate this problem by providing double \code{comare_and_swap} (
 is two \code{cas} operations only executed if both suceed, or double-word \code{compare_and_swap}
 (\code{dwcas}), which checks, say, 128 bits instead of the word size of 64.  It is possible to
 implement \code{cas} operations with arbitrary number of locations
-(\code{casn})\cite{harris2002practical,luchangco2003nonblocking}, but the implementations are often
+(\code{casn})~\cite{harris2002practical,luchangco2003nonblocking}, but the implementations are often
 not practical. Other alternatives include transactional memory, but this is not covered in this
 thesis.
 
@@ -249,8 +249,7 @@ thesis.
 Most programs require blocks of memory which size is only known at runtime, but the operating
 system usually only deals with memory in pages. Memory allocation is a system designed to unify the
 two by managing large blocks of memory and handing out portions of it to the process. The subsystem
-managing this is called the allocator. Many general purpose allocators exist, such as
-\cite{glibc-malloc,jemalloc,tcmalloc}, and general ideas can be found in~\cite{knuth1997vol1}.
+managing this is called the allocator. Many general purpose allocators exist, such as~\cite{glibc-malloc,jemalloc,tcmalloc}, and general ideas can be found in~\cite{knuth1997vol1}.
 
 The use of a general purpose allocator ifor all allocations is a program is often a source of
 performance problems; specialized allocators for short lived objects, small objects, large objects,
@@ -267,7 +266,7 @@ We look at a few schemes for concurrent memory reclamation.
 \subsection{Reference Counting\label{sec:background-rc}}
 
 Reference counting (RC) is a natural solution for memory reclamation. It was introduced in 1960 by
-G. E.  Collins\cite{collins1960method}, where it was used for collecting nodes of a linked list.
+G. E.  Collins~\cite{collins1960method}, where it was used for collecting nodes of a linked list.
 The idea is that we count the number of references to data, so that we can tell if we are holding
 the only reference to some data. When we no longer need this reference, we know it is safe to
 reclaim the memory the reference points to, since no other reference to that memory exists. The
@@ -397,7 +396,7 @@ that they push out their registeres to the stack.
 Automatic memory management exist for languages that does not provide this luxury themselves; the
 most known example is the BDW-GC~\cite{bdwgc}.  There is also ongoing work for standarizing such
 systems in some languages; A proposal for including hazard pointers and RCU (read-copy-update, not
-covered in this report) into the C++ standard library was released in November 2017 \cite{cpp:mr}.
+covered in this report) into the C++ standard library was released in November 2017~\cite{cpp:mr}.
 There is also ongoing work in managed languages, despite the presence of a garbage collector. An
 example is Project
 Snowflake~\cite{project-snowflake-non-blocking-safe-manual-memory-management-net} which combines
@@ -408,6 +407,6 @@ platform.
 \subsection{Crossbeam}
 
 In the Rust ecosystem the most notable contribution to the space of concurrency is the Crossbeam
-umbrealla project\cite{crossbeam}. Crossbeam aims to offer concurrent data structures and
+umbrealla project~\cite{crossbeam}. Crossbeam aims to offer concurrent data structures and
 primitives, in addition to memory reclamation systems. As of June 2018 a system using EBR is
 available, and ideas for a system using HP are voiced.
