@@ -1,6 +1,9 @@
 \chapter{Background\label{ch:background}}
 
-In this chapter we briefly sum up the most important backgroud material we depend on in this text.
+\epigraph{No two persons can learn something and experience it in the same way.}{\textit{Shannon L.
+Alder}}
+
+In this chapter we briefly sum up the most important background material we depend on in this text.
 Parts of the material is covered in a standard computer science education, but we will summarize it
 nevertheless.
 
@@ -23,12 +26,12 @@ few of the most important topics within operating systems that are relevant for 
 
 One of the most important features of modern operating systems is to provide virtual memory.
 Instead of having programs use the memory of the system directly, the operating system acts as if
-each process have the entire adrress space for itself. Behind the scenes the operating systems maps
+each process have the entire address space for itself. Behind the scenes the operating systems maps
 the programs address space to addresses on the physical memory. Naturally, the memory addresses on
 the physical memory does not overlap for different programs.
 
 The operating system handles memory in segments called \emph{pages}. The page size is configurable,
-but is usually 4096kB in size. Memory addresses in the program space is mapped to an adrress in a
+but is usually 4096kB in size. Memory addresses in the program space is mapped to an address in a
 specific page, and the page is again mapped to the address on the physical memory.
 A common optimization in modern operating systems is for the pages to have \gls{cow} semantics;
 this means that when a page is copied, it is only marked as copied; it is first when either of the
@@ -48,30 +51,30 @@ be read and written to incrementally.
 
 \subsection{Threads and Processes}
 
-Operating systems run programs as \emph{processses}. A process have a uniqe address space, in which
+Operating systems run programs as \emph{processes}. A process have a unique address space, in which
 only the process itself can operate\footnote{this is a truth with modifications; the kernel has
 naturally the privilege to touch all memory it pleases.}.
 While not so common in modern programming, a common pattern in handling processes is
 \emph{forking}, where the process clones itself, and both copies, the child and parent process,
-continue their execution. This is an excelent application of the \gls{cow} semantics of page
+continue their execution. This is an excellent application of the \gls{cow} semantics of page
 cloning as mentioned in \cref{sec:background-virtual-memory}, since the entire address space of the
 process is copied.
 
 Each executing process may have multiple execution units called \emph{threads}. The main difference
 between threads and processes is that a process have its own address space whereas a thread does
-not. This allows multiple threads to communicate and share data by simplty sharing the location of
+not. This allows multiple threads to communicate and share data by simply sharing the location of
 the data they want to share. Threads are also much lighter, meaning there is a smaller overhead in
 creation and switching execution of threads than that of processes.
 
 The most common implementation of threads on Unix based systems is \gls{pthreads}. \gls{pthreads}
-standarizes thread management, such as thread creation and joining, but also thread communication
+standardizes thread management, such as thread creation and joining, but also thread communication
 primitives such as mutexes, condition variables, and barriers.
 
 
 \subsection{Signals\label{sec:background-signals}}
 
 Signals is a \gls{ipc} feature in POSIX operating systems used for asynchronous communication
-between processes. Most system programmers have encountered a few signals in their carreer, such as
+between processes. Most system programmers have encountered a few signals in their career, such as
 \code{SIGSEGV}, \code{SIGINT}, \code{SIGKILL} and \code{SIGTERM}. Signals are caught by the
 receiving process and a signal handler is executed. Certain signals, like \code{SIGTERM} cannot be
 caught, as the intent behind the signal is to abruptly terminate the process.
@@ -106,7 +109,7 @@ numbers.
 There are usually gray zones of the definitions of parts of programming languages. For instance, in
 the C and C++ world it is common to differentiate between \emph{implementation defined}, meaning an
 implementation is free to define the semantics, but it must be documented; \emph{unspecified
-behaviour}, meaning an implementation needs not define its choice; and \emph{undefined behaviour},
+behavior}, meaning an implementation needs not define its choice; and \emph{undefined behavior},
 where all bets are off --- a program containing \gls{ub} does not make sense.
 
 Other reasons for not having a completely specified language is that compiler writers may make
@@ -114,21 +117,21 @@ assumptions about the indented semantics of the code. For instance, we could say
 then $x + a > x$ is always \code{true}. However, if the addition of $x$ and $a$ overflows, it may
 lead to a number that is \emph{smaller} than $x$. Another example is that $a = 2x$ should imply
 $\frac{a}{2} = x$. Again, should the multiplication $2x$ overflow, this might not be true.
-If we abstain from defining the overflow of numbers, we can get away with making these assumtions;
+If we abstain from defining the overflow of numbers, we can get away with making these assumptions;
 the program may end up producing non-sensible results, but from a language specification standpoint
-that is alright, as the program was invalid to begin with: its behaviour was undefined.
+that is alright, as the program was invalid to begin with: its behavior was undefined.
 
-Good introductions to the tradeoffs regarding \gls{ub} includes
+Good introductions to the trade-offs regarding \gls{ub} includes
 \cite{regehr2017undefined,carruth2016garbage}.
 
 
 
 \subsection{Garbage Collectors}
 
-Another important distinction in programming langauges are \emph{managed} and \emph{unmanaged}
+Another important distinction in programming languages are \emph{managed} and \emph{unmanaged}
 languages. The former usually refers to languages in which memory management is abstracted away by
-having a runtime with a subsystem that manages memory allcation and reclamation automatically; such
-a system is often refered to as a \emph{Garbage Collector}. Most of the mainstream programming
+having a runtime with a subsystem that manages memory allocation and reclamation automatically; such
+a system is often refereed to as a \emph{Garbage Collector}. Most of the mainstream programming
 languages today, including Python, Ruby, Java, Go, Javascript, and C\#, are managed languages.
 
 There are many variations of garbage collectors. The most common is the \emph{tracing garbage
@@ -143,7 +146,7 @@ not in use may be quite high.
 
 \section{Concurrency}
 
-Modern hardware and operating systems makes heavy use of concurrency; processes are continously
+Modern hardware and operating systems makes heavy use of concurrency; processes are continuously
 preempted in order to have more processes executing than processors available on the system.  When
 the processes are running independently of each other this works rather seamlessly.  However, the
 hardware deals with many quite difficult concurrency problems that programmers seldom think about:
@@ -159,20 +162,20 @@ often is, very expensive compared to the usual work of the CPU\@.
 
 Still worse, the memory location that the processes change does not need to be the same address,
 but just be in proximity of each other. This is because the cache of a processor does not operate
-on single words, but on whole segments called \emph{cahce lines}. Even ajacent cache lines may
-cause unneded synchronziation if the lines are read and modified by processes that does not share
+on single words, but on whole segments called \emph{cache lines}. Even adjacent cache lines may
+cause unneeded synchronization if the lines are read and modified by processes that does not share
 all levels of cache. Having superfluous synchronization due to the locality of modifies data among
 processes is called \emph{false sharing}.
 
 Another problem that the slow memory access speed realizes is that for communicating processes on
 different processors, the order of operations may be of the uttermost significance. This strongly
 imposes requirements on the hardware forces the inter-processor communication to be of a certain
-nature. It turns out, however, that this also decreses the performance of the CPU significantly.
+nature. It turns out, however, that this also decreases the performance of the CPU significantly.
 Attempting to both have our cake and eat it too, CPU architectures define a \emph{memory model}:
 rules about limitations on instruction reordering. Weak memory orderings, such as ARM and PowerPC,
-impose very few restrictions on the reorderings, so that programmers must write memory \emph{fence}
+impose very few restrictions on the re-orderings, so that programmers must write memory \emph{fence}
 instructions to explicitly manage the ordering relationship in the code. Strong memory orderings,
-like x86, on the other hand, allows very few reorderings. We will not discuss memory models and
+like x86, on the other hand, allows very few re-orderings. We will not discuss memory models and
 orderings further in this text, but it is useful to keep it in mind.
 
 Many operations require that multiple operations appear to happen as a single unit for all other
@@ -196,11 +199,11 @@ given work to do it will manage the execution of the work on threads. The user o
 does not need to know how this management functions, only that the work is executed concurrently,
 such that it hopefully utilizes the parallel nature of modern processors.  An often used idea in
 implementing a thread pool is \emph{work stealing}~\cite{blumofe1999scheduling}, in which threads
-have their list of work avaiable to the other threads, which may ``steal'' a part of their work,
+have their list of work available to the other threads, which may ``steal'' a part of their work,
 should they run out themselves.
 
 Message passing is a concurrent computational model~\cite{hewitt1973session}, which has seen
-somewhat of a renessance with programming languages such as Go~\cite{go}, and programming with
+somewhat of a renaissance with programming languages such as Go~\cite{go}, and programming with
 co-routines, a popular pattern in Kotlin~\cite{kotlin}. Message passing is often simpler than other
 means of communication, since the processes communicate in a clear manner, and can be programmed to
 act reactively.
@@ -208,7 +211,7 @@ act reactively.
 In lock-free programming, the \code{compare_and_swap}, or \code{cas}, operation is heavily used.
 The general idea is to attempt to perform an operation, having the comparison check that nothing
 has changes in between reading the value that we perform the \code{cas} on. If the \code{cas}
-fails, that is the read value was different, we restart. Otften operations look like
+fails, that is the read value was different, we restart. Often operations look like
 \proc{Lock-Free-Op}.
 
 \begin{codebox}
@@ -223,20 +226,20 @@ fails, that is the read value was different, we restart. Otften operations look 
 
 \subsection{The ABA-Problem\label{sec:aba-problem}}
 
-However, there are pitfalls to this approach. Occationally checking that the location $l$ still has
+However, there are pitfalls to this approach. Occasionally checking that the location $l$ still has
 its value $a$ might not be sufficient to see that the remaining of the program is in the state that
 one expects. This problem is called the \emph{ABA-Problem}.
 
 Consider the following real world analogy: assume you have an opaque bottle that is filled with
-water. If you leave the bottle on your desk and return to it after lucnh, there is no way to see
+water. If you leave the bottle on your desk and return to it after lunch, there is no way to see
 whether anyone has been drinking your water by simply inspecting the bottle from the outside.
 Someone might have taken the bottle, drunk the water, and put the bottle back as it were. Even
 worse, someone might have replaced your bottle with an identical bottle filled with bees.
 
 The ABA problem is often due to the fact that we may only look at a single word when performing the
 \code{cas}; had we been able to validate arbitrary memory this would not be a problem. Certain CPU
-architectures mitigate this problem by providing double \code{comare_and_swap} (\code{dcas}), which
-is two \code{cas} operations only executed if both suceed, or double-word \code{compare_and_swap}
+architectures mitigate this problem by providing double \code{compare_and_swap} (\code{dcas}), which
+is two \code{cas} operations only executed if both succeed, or double-word \code{compare_and_swap}
 (\code{dwcas}), which checks, say, 128 bits instead of the word size of 64.  It is possible to
 implement \code{cas} operations with arbitrary number of locations
 (\code{casn})~\cite{harris2002practical,luchangco2003nonblocking}, but the implementations are often
@@ -251,7 +254,7 @@ system usually only deals with memory in pages. Memory allocation is a system de
 two by managing large blocks of memory and handing out portions of it to the process. The subsystem
 managing this is called the allocator. Many general purpose allocators exist, such as~\cite{glibc-malloc,jemalloc,tcmalloc}, and general ideas can be found in~\cite{knuth1997vol1}.
 
-The use of a general purpose allocator ifor all allocations is a program is often a source of
+The use of a general purpose allocator for all allocations is a program is often a source of
 performance problems; specialized allocators for short lived objects, small objects, large objects,
 or bulk allocated and reclaimed memory (an ``arena'') are often used.
 
@@ -348,7 +351,7 @@ hazardous pointers, and includes a proof of correctness. We will settle for a in
 them. It is based on the observation that in most operations on data structure we only need a small
 constant number of references to memory that is shared between running threads. The technique
 exploits this by allowing each thread to register the pointers, called \emph{hazard pointers}, the
-thread wants to use, but which it cannot be sure are safe (meaning invalid og prone to ABA errors).
+thread wants to use, but which it cannot be sure are safe (meaning invalid or prone to ABA errors).
 We call potentially unsafe pointers \emph{hazardous}. The number of pointers we need varies with
 the algorithm performed, but a typical value is one or two.
 
@@ -388,13 +391,13 @@ process, and scan the stacks of all threads in the system, looking for pointers.
 system can find all addresses that are reachable, and thus also addresses that are no longer
 reachable. It also employs signals (\cref{sec:background-signals}) to have threads do some work
 before the process forks. Since the signal handler is a new procedure signaling the threads ensures
-that they push out their registeres to the stack.
+that they push out their registers to the stack.
 
 
 \section{Related Works\label{sec:background-related}}
 
 Automatic memory management exist for languages that does not provide this luxury themselves; the
-most known example is the BDW-GC~\cite{bdwgc}.  There is also ongoing work for standarizing such
+most known example is the BDW-GC~\cite{bdwgc}.  There is also ongoing work for standardizing such
 systems in some languages; A proposal for including hazard pointers and RCU (read-copy-update, not
 covered in this report) into the C++ standard library was released in November 2017~\cite{cpp:mr}.
 There is also ongoing work in managed languages, despite the presence of a garbage collector. An
@@ -407,6 +410,6 @@ platform.
 \subsection{Crossbeam}
 
 In the Rust ecosystem the most notable contribution to the space of concurrency is the Crossbeam
-umbrealla project~\cite{crossbeam}. Crossbeam aims to offer concurrent data structures and
+umbrella project~\cite{crossbeam}. Crossbeam aims to offer concurrent data structures and
 primitives, in addition to memory reclamation systems. As of June 2018 a system using EBR is
 available, and ideas for a system using HP are voiced.

@@ -1,8 +1,10 @@
 \chapter{Methodology\label{ch:methodology}}
 
+\epigraph{Inspector, your methods are unconventional to say the least.}{\textit{The Police Commissioner, Sudden Impact (1983)}}
+
 This chapter summarizes some of the practical matters surrounding the implementation part of the
 thesis. This is neither a description of, nor a part of the implementation, of CMR\@. Despite this
-we believe documenthing the methods of experimentation is of equal importance in Computer Science
+we believe documenting the methods of experimentation is of equal importance in Computer Science
 as in any other science.
 
 We look at testing in \cref{sec:methods-testing}, as testing of concurrent systems are of a
@@ -15,7 +17,7 @@ have performed the benchmarks, which results are presented in \cref{ch:results}.
 \section{Testing\label{sec:methods-testing}}
 
 Testing is an important part of software development. While formal methods have not yet made its
-way into the software development insdustry, simpler and more heuristic methods, like unit testing
+way into the software development industry, simpler and more heuristic methods, like unit testing
 and integration testing, are widespread. However, while testing is useful to improve the quality of
 software, it is far from sufficient. As Edsger Dijkstra famously said~\cite{buxton1970software}:
 \begin{displayquote}
@@ -34,7 +36,7 @@ yet more bugs.
 \subsection{Sanitizer\label{sec:sanitizer}}
 
 To automate validation of pointer reads we made a compile time feature\footnote{\emph{features} are
-similiar to \code{\#ifdef}s in C and C++} called \code{sanitize} that tracked all allocations,
+similar to \code{\#ifdef}s in C and C++} called \code{sanitize} that tracked all allocations,
 frees, and pointer reads.  Allocations and frees were tracked in two \code{HashMap}s,
 \code{ALLOCATIONS} and \code{FREES}.  On each new allocation, we insert it into the \code{HashMap}
 while asserting that it was not there previously. We also remove it from the frees map, in case it
@@ -67,7 +69,7 @@ impl<'a, T> Deref for Ptr<'a, T> {
 This feature was of great help during development and testing, and it quickly reported illegal
 memory accesses, without having the overhead of other sanitizers like Valgrinds \code{memcheck}.
 The downside of this sanitizer is that it did not show the source of the errors, only their
-precense. However, with this in mind we could rerun the program using \code{memcheck} and try to
+presence. However, with this in mind we could rerun the program using \code{memcheck} and try to
 force the illegal accesses to manifest themselves, as we then knew that they were present.
 
 
@@ -125,7 +127,7 @@ fn hashmap_insert(num_threads: usize) {
   \code{HashMap}.}
 \end{figure}
 
-For CMR this is useful since we can put the data strucutres we want to
+For CMR this is useful since we can put the data structures we want to
 benchmark in the immutable shared state, as neither of the operations we want to test are
 \code{\&mut self} (see \cref{sec:concurrency-and-aliasing}). The user specifies the function to be
 benchmarked, the number of threads, and the states, and the duration of the benchmark, and
@@ -134,7 +136,7 @@ duration is measured.
 
 
 \cref{lst:trench-ex} shows the benchmark for \code{HashMap::insert}.  \code{RandomSource} allows us
-to pregenerate random numbers that we can insert into the hashmap, such that the random number
+to pre-generate random numbers that we can insert into the hashmap, such that the random number
 generation itself is thread local, and is not included in the benchmarking loop.
 
 The \code{with_local_state} function runs the closure on each thread in parallel; this is used both

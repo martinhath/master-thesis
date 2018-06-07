@@ -1,5 +1,7 @@
 \chapter{Introduction}
 
+\epigraph{Call me Ishmael}{\textit{Herman Melville, Moby-Dick or, The Whale}}
+
 In this chapter we introduce the problem space in which this thesis operates.
 We look at the general problem that we want to solve, and why it is an interesting problem.
 We also draw an outline of the structure of this thesis, and summarizes each chapter in short.
@@ -15,7 +17,7 @@ The clock speed of computer processors have had a very fast increase in the last
 Gordon Moore observed in 1965 that he number of components in an integrated circuit roughly had
 doubled every 18 months, and speculated that this trend would continue for the next 10 years.
 The law, which now is knows as Moores Law, still holds true today.
-Moores Law has also been used on the clock speed of CPUs. This trend, however, has grinded to a
+Moores Law has also been used on the clock speed of CPUs. This trend, however, has grounded to a
 halt; the clock speed of desktop processors in the last 10 years have been more or less stagnant.
 Despite the lack of clock increase, there have been major improvements in modern CPUs. Improvements
 include pipelining, branch prediction, out-of-order execution, and, most important for this thesis,
@@ -33,7 +35,7 @@ Efficient synchronization between processes is also, perhaps surprisingly, a dif
 
 Many modern programming languages aim for developer productivity. Many programming abstractions and
 runtime subsystems are introduced in the name of convenience; one of these is a memory management
-system, often refered to as a garbage collector. Despite the developer ergonimic inprovements such
+system, often referred to as a garbage collector. Despite the developer ergonomic improvements such
 systems claim to improve, they often come at a cost: efficiency. Garbage collectors have to support
 a wide range of use cases, like both short-lived allocations of small objects \emph{and} bulk
 allocation of large objects, the overhead of a memory manager may be far from optimal.
@@ -43,7 +45,7 @@ allocation of large objects, the overhead of a memory manager may be far from op
 \subsubsection{Rust}
 
 Rust is a new programming language aiming to unify the developer ergonomics promised by managed
-languages, and the efficiency of unmamaged languages. The work of managing memory is left to the
+languages, and the efficiency of unmanaged languages. The work of managing memory is left to the
 compiler, which at compile time analyses the program, and enforces certain rules about how memory
 is handled. This way the programmer does not need to manage memory in the traditional sense,
 although it does impose a cognitive overhead when developing programs, which larger than that of managed
@@ -56,15 +58,15 @@ controlled by the programmer, as there is no runtime.
 
 In this thesis we aim to develop a concurrent memory management system for Rust called CMR\@, which
 is based on Forkscan~\ref{sec:forkscan}. We believe this is an interesting topic since it is not
-clear how to incoorporate memory management for concurrent system in the ownership model that Rust
-provides, although there are existing projects which does similiar things; these projects are often
+clear how to incorporate memory management for concurrent system in the ownership model that Rust
+provides, although there are existing projects which does similar things; these projects are often
 implementation of other known memory reclamation schemes like Hazard Pointers and Epoch-Based
 reclamation. This thesis develops a new scheme.
 
 Despite one of the promises that Rust makes is one of predictability and control, CMR works more
 like a traditional garbage collector. However, as the scheduling of threads in a process inherently
 is fuzzy and unpredictable, we believe that this is an intrinsic property of any concurrent memory
-reclamtion system.
+reclamation system.
 
 The aims for this thesis is to consider CMR as an alternative to more traditional methods for
 memory reclamation. The viability of such a management system is both performance and usability,
@@ -81,9 +83,9 @@ appreciate the contents of this thesis. Much of the material is a part of a stan
 science curriculum, but we repeat it here nevertheless. Relevant sections from this chapter is
 cited in the remaining of the text.
 
-\cref{ch:rust} introduces the reader to the Rust programming language, in which the impementation
+\cref{ch:rust} introduces the reader to the Rust programming language, in which the implementation
 of CMR is written. The way Rust functions makes it an integral part of how CMR is designed. While
-this could be considered background, itis its own chapter due to its importance for this project as
+this could be considered background, it is its own chapter due to its importance for this project as
 a whole.
 
 \cref{ch:cmr} presents the memory management system CMR at a high level.  We look at primitives of
@@ -95,13 +97,13 @@ chapter.
 \cref{ch:implementation} describes the implementation of CMR in Rust, including the most important
 primitives and procedures. With the exception of a few omitted code sections, which are clearly
 marked as such, all program code in this chapter is fully functionally Rust code taken from the
-impementation.
+implementation.
 
 \cref{ch:usage} contains example usage of CMR for external applications. We have implemented four
-data strucutres using CMR, and these four along with their implemetations are discussed further in
+data structures using CMR, and these four along with their implementations are discussed further in
 this chapter.
 
-\cref{ch:methodology} mentiones practical matters when it comes to testing and benchmarking of the
+\cref{ch:methodology} mentions practical matters when it comes to testing and benchmarking of the
 system. This is included in the thesis as it may be quite different from testing and benchmarking
 of sequential systems, or systems written at a higher abstraction layer.
 

@@ -20,7 +20,7 @@ documented through an \gls{rfc} process. For a thorough introduction to Rust, se
 \section{Introduction}
 
 Rust is a compiled language with a minimal runtime, similar to C and C++. \code{rustc} uses
-LLVM~\cite{llvm} as a compiler backend for code optimization and code generation. The performance of
+LLVM~\cite{llvm} as a compiler back-end for code optimization and code generation. The performance of
 Rust code is very similar to that of C and C++~\cite{rust-perf}; variations are often due to the
 lack of stable features like SIMD support, or from different compile time information given to LLVM
 by either language.
@@ -29,7 +29,7 @@ Rust has many features from the ML family of programming languages, such as patt
 tagged enums, and a rich type system with type inference. Most notably, and unlike most other
 modern programming languages, Rust does not have a garbage collector. Despite this, Rust programs
 does not handle memory management manually; memory management is typically done statically at
-compile time by utilizing language features covered in the upcomming sections.
+compile time by utilizing language features covered in the upcoming sections.
 
 Rust uses \code{struct}s similar to C and C++ which can have \emph{methods}, but it does not have
 inheritance. \code{Trait}s are similar to interfaces: they define methods and optionally an
@@ -50,8 +50,8 @@ destruction in order not to leak memory. This \code{free} call is done inside \c
 \section{The Borrow Checker\label{sec:borrow-checker}}
 
 A central concept in Rust is that of ownership. At any moment, an object has exactly one binding
-which \emph{owns} the object. Ownership may be transfered (``\emph{moved}'', which is the default
-behaviour), or it may be \emph{lended out}. Then the receiver is \emph{borrowing} the binding.
+which \emph{owns} the object. Ownership may be transferred (``\emph{moved}'', which is the default
+behavior), or it may be \emph{lent out}. Then the receiver is \emph{borrowing} the binding.
 There are two types or borrows: immutable and mutable borrows.
 One of the reasons to differentiate between mutable and immutable borrows, is references in Rust
 can be either aliased, or mutable, but never both.  That is, if there is a mutable reference to
@@ -59,9 +59,9 @@ some object, then that reference has to be the \emph{only} reference. This ensur
 references are never changed, which makes it simpler for the programmer to reason about the code
 since we get referential transparency, in addition to that it enables more compiler optimizations.
 
-Borrowed objects are in effect \emph{references} to some data, similiar to pointers or references
+Borrowed objects are in effect \emph{references} to some data, similar to pointers or references
 in other programming languages. While Rust does have raw pointers (see \cref{sec:unsafe-rust}), it
-is rarely used, and passing values by reference is prefered.  The three types of ownership handling
+is rarely used, and passing values by reference is preferred.  The three types of ownership handling
 is shown in \cref{fig:rust-ownership}. In \cref{fig:ownership-transfer} we move \code{x}, so
 \code{x} is no longer usable after the last line, and an attempt to use it is caught as a compile
 time error: \code{error[E0382]: use of moved value: `x`}. Since the caller of \code{foo} has
@@ -77,7 +77,7 @@ order to borrow mutably.
 
 Understanding the borrow checker is often a pain point for new programmers, and the period in which
 new Rust programmers learns an intuition about how to structure programs within these rules is
-often refered to as ``fighting with the borrow checker''.
+often referred to as ``fighting with the borrow checker''.
 
 
 \section{Lifetimes\label{sec:rust-lifetimes}}
@@ -96,7 +96,7 @@ does not live long enough}.
 
 
 Although Rust programmers may have to think about the lifetime of the variables, they seldom have
-to write lifetime annotated functions, due to \emph{lifetime elison} --- the compiler can ususally
+to write lifetime annotated functions, due to \emph{lifetime elision} --- the compiler can usually
 figure out the most general lifetime that fits the function. Functions may be annotated with
 explicit lifetimes, for instance if it takes multiple references in which the relative difference
 of the lifetimes of the references is important.
@@ -121,7 +121,7 @@ This way we can convey the information that the resulting \code{Peron} should li
 
 \section{Unsafe Rust\label{sec:unsafe-rust}}
 
-When talking about the Rust progrmaming language, one usually talks about a subset of Rust, called
+When talking about the Rust programming language, one usually talks about a subset of Rust, called
 \emph{Safe Rust}. In Safe Rust, there are no race conditions, mutable memory locations are never
 aliased, and all pointer accesses are valid.  The real world, on the other hand, rarely offers
 these guarantees, and the unfortunate truth which Rust programmers must deal with is that in order
@@ -137,8 +137,8 @@ The difference between Safe and Unsafe Rust is only four things. In Unsafe Rust 
     \item implement \code{unsafe} traits.
 \end{enumerate*}
 One way of thinking about the unsafety of ones codebase is that there should be no undefined
-behaviour in safe code, no matter how the code looks like. In other words, it should be impossible
-to mess up so badly as to invoke undefiend behaviour without typing \code{unsafe}.
+behavior in safe code, no matter how the code looks like. In other words, it should be impossible
+to mess up so badly as to invoke undefined behavior without typing \code{unsafe}.
 
 Dereferencing raw pointers is naturally \code{unsafe}, as it is not possible to statically
 guarantee that the address of the pointer is valid memory, or that the objects it points to is
@@ -155,12 +155,12 @@ here we can pretend that it is.} \code{(count, data)}. The \code{count} is incre
 \code{.clone()} is called, and decremented when a variable is \code{Drop}ped.  To understand why
 this cannot be send across thread boundaries safely, consider what happens if $T\sb{1}$
 \code{.clone()} at the same time as $T\sb{2}$ \code{Drop}s it: the \code{count} field is written to
-twice without any synchronizationor atomic operations\footnote{\code{Rc} does not use atomics for
+twice without any synchronization atomic operations\footnote{\code{Rc} does not use atomics for
 performance reasons, but \code{Arc} does, and it does implement \code{Send}.} --- a race condition!
 
 Rust is marketed as a safe programming language; it is however important to realize that this is
-only a half-truth. In princible Rust, due to the \code{unsafe} keyword, is no more safe than any
-codebase in C or C++ is, and third party librarlies might hide the fact that they utilize
+only a half-truth. In principle Rust, due to the \code{unsafe} keyword, is no more safe than any
+codebase in C or C++ is, and third party libraries might hide the fact that they utilize
 \code{unsafe} code in order to appear more ``safe''. The language offers many ways to avoid having
 to type the dreaded six letters and enter the world where all bets are off, but nobody is stopping
 crate authors, co-workers, or even yourself, to write \code{unsafe} code.
@@ -197,12 +197,12 @@ underlying \code{usize} to be changed without any synchronization overhead.
 
 \subsection{Common Patterns}
 
-The standard librarys synchronization module \code{std::sync} contains primitives that most
+The standard library's synchronization module \code{std::sync} contains primitives that most
 concurrent programs require, such as \code{Mutex}, \code{Channels}, \code{Condvar}, and
 \code{Atomic}s. A common pattern in Rust is the \gls{raii} pattern. The idea is that resources
 should be managed automatically when constructing and destructing an object. \code{Mutex} uses
 these ideas: \code{Mutex::lock} returns an \code{Result<MutexGuard>}, where the \code{MutexGuard}
-wrapps a mutable reference to the data that is protected by the \code{Mutex}. When the
+wraps a mutable reference to the data that is protected by the \code{Mutex}. When the
 \code{MutexGuard} goes out of scope, its \code{Drop} implementation is ran, and the \code{Mutex} is
 unlocked.
 
@@ -219,20 +219,20 @@ this: parallel iterators. Instead of writing \code{vec.iter()} to iterate over a
 then performing some operation on each element sequentially, with \code{rayon} we can write
 \code{vec.par_iter()}, and get data parallelism for free. The operation is then ran in parallel
 with any number of threads. Internally \code{rayon} uses a thread pool and work stealing to handle
-the division of labour among the threads.
+the division of labor among the threads.
 
 
 \section{Nightly Rust}
 
 The Rust language and compiler follows a fixed release schedule, where a new stable version is
-released every six weeks. In addition to this there is the beta branch, which is the upcomming
+released every six weeks. In addition to this there is the beta branch, which is the upcoming
 version, and the nightly version which is the most recent version, build daily from the
 \code{master} branch of the source tree.
 
-The nightly version of the compiler allows users to opt in on \emph{untsable} features: features
-that are partially or fully implemented, but which details are not yet committed to. These featuers
+The nightly version of the compiler allows users to opt in on \emph{unstable} features: features
+that are partially or fully implemented, but which details are not yet committed to. These features
 includes new APIs in the standard library, new syntax, and new language features all together.
-As we have used multiple unstable features in CMR, we look at some of them in deatil.
+As we have used multiple unstable features in CMR, we look at some of them in detail.
 
 
 \subsection{Non-Lexical Lifetimes\label{sec:nll}}
@@ -242,7 +242,7 @@ one may want to get rid off. The feature \gls{nll} lifts this requirement, and l
 a variable last only until its last usage. Having this it is possible to seemingly break some of
 Rust rules, like aliased mutable references:
 \input{listings/nll-alias}
-This clearly violates one of the Rust rules, namely that we cannot have mutable aliased referenes.
+This clearly violates one of the Rust rules, namely that we cannot have mutable aliased references.
 Yet, in this example we have two mutable references, \code{r1} and \code{r2}, to the same data.
 With \gls{nll} this will compile, as we do not use \code{r1} after having made \code{r2}, so its
 lifetime is implicitly ended right after its declaration. If we write \code{r1.push(1);} after
@@ -279,8 +279,8 @@ implementations nevertheless.
 \end{figure}
 
 While trait objects offers greater flexibility in the usage of traits, the pointer jumping leads to
-worse cache behaviour which may have a large impact on performance, and important compiler
-optimizations like inlining is impossible.
+worse cache behavior which may have a large impact on performance, and important compiler
+optimizations like in-lining is impossible.
 
 
 
@@ -309,8 +309,8 @@ and \code{Debug}. The current implementation forbids such specializations.
 
 The final nightly feature that we look at is \emph{allocators}. It is not yet possible to change
 the default allocator in stable Rust, but a suggested API for creating new allocators and
-specifying the default system wide allocator for Rust programs is avaiable by opting in on the
-allocator feature. The feature defines a trait \code{GlobalAlloc} that defines functions analagous
+specifying the default system wide allocator for Rust programs is available by opting in on the
+allocator feature. The feature defines a trait \code{GlobalAlloc} that defines functions analogous
 to \code{malloc} and \code{free} from libc, and a attribute \code{\#[global_allocator]} to select
 which allocator we want to use.
 

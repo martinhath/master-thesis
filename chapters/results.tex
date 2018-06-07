@@ -3,10 +3,10 @@
 \epigraph{I pass with relief from the tossing sea of Cause and Theory to the firm ground of Result
 and Fact.} {\textit{Winston S. Churchill, The Story of the Malakand Field Force}}
 
-In this chapter we look at the expermental results of the system, both piecewise and as a whole.
+In this chapter we look at the experimental results of the system, both piece-wise and as a whole.
 We start by summarizing the hardware that the benchmarks is ran on in \cref{sec:results-hw}. In
 \cref{ch:res-ops} we look at the overhead of the operations done by CMR\@. In \cref{sec:results-ds} we
-look at the performance of the data structuers implemented, with and without the overehead CMR, and
+look at the performance of the data structures implemented, with and without the overhead CMR, and
 compare them to alternatives in the Rust ecosystem, like Crossbeam~\cite{crossbeam} and data
 structures in the standard library wrapped in a \code{Mutex}.
 
@@ -18,11 +18,11 @@ We start this chapter by looking at the hardware the benchmark suite is ran on. 
 suite is ran on four separate machines: one desktop machine \gribb{}, an ARM based cloud server
 \scaleway{} and two quad-socket high-end server CPUs, \mitserver{} and \daslab{}.  The four CPUs
 all have different indented usage and price range, with the exception of the two high-end servers.
-It is therefore interesting to look at the performance on all systems, as oposed to limiting
-ourselfes to a certain price range or intended usage.
+It is therefore interesting to look at the performance on all systems, as opposed to limiting
+ourselves to a certain price range or intended usage.
 
 \gribb{} is an x86 desktop CPU running at 3.40GHz, with 4 cores and 8 threads. The system has 16 GB of
-RAM, and is the system with the least abount of free memory.
+RAM, and is the system with the least amount of free memory.
 
 \scaleway{} is an ARMv8 CPU at 2.50GHz, having 32 cores and 32 threads over two NUMA cores, with 32
 GB of RAM\@.
@@ -47,7 +47,7 @@ the benchmarks also varies, due to memory constraints of the system they are ran
 The operations that CMR provides that are most interesting to look at is allocation
 (\code{cmr::alloc}) and guard initialization and destruction (\code{guard!}), as these operations
 are the only ones that have any significant overhead. Atomic loads pointer manipulations are mainly
-tricks of the type system to ensure the safey of the operations, and has no run-time overhead.
+tricks of the type system to ensure the safety of the operations, and has no run-time overhead.
 
 
 \subsection{Primitives}
@@ -118,8 +118,8 @@ We compare the four hashmap variations:
 The \code{HashMap} benchmarks consists of four operations: \code{insert}, \code{remove},
 \code{contains}, and a combination of the three: a 80/10/10 split of \code{contains},
 \code{inserts}, and \code{remove} respectively. This is shown experimentally to mirror real world
-\todo{cite !!}
-usage of hashmaps quite well, and is common in concurrent performance testing.
+\cite{alistarh2017forkscan, shalev2006split, cohen2015efficient} usage of hashmaps quite well, and
+is common in concurrent performance testing.
 
 Naturally, this is not quite an apples-to-apples comparison; the hashmap of CMR is implemented
 quite differently than in Crossbeam, and even more different than the one in the standard library.
@@ -140,7 +140,7 @@ The experimental results reveal that the hash table scales properly up to the th
 machine. As mentioned in \cref{sec:results-hw} this is expected. We also see that the variant of
 CMR with all overhead removed performs strictly better than the real CMR\@; this acts as a fine
 sanity check. Crossbeams SkipList also scales well, although its performance is slightly lower than
-that of CMR, with the expection of the very last data points from the \code{remove} benchmark.
+that of CMR, with the exception of the very last data points from the \code{remove} benchmark.
 
 It is also nice to see that the na\"\i{}ve approach of wrapping a \code{HashMap} in a \code{Mutex}
 scales rather poorly; however we should point out that for Crossbeam, it makes sense to use the
@@ -192,14 +192,14 @@ of both the CPUs and of the data.
 The \code{HashMap} performance on the quad sockets is much more pessimistic than the graphs from
 the earlier sections; the operational throughput on both \code{insert} and \code{remove} evens out
 already after 16 and 36 cores for the \mitserver{} and \daslab{} respectively. This is probably
-because of the fact that only a limited numebr of threads are running on one socket, so that any
-shared memory loction that is modified by the \code{HashMap}s operations must be flushed to main
+because of the fact that only a limited number of threads are running on one socket, so that any
+shared memory location that is modified by the \code{HashMap}s operations must be flushed to main
 memory. For us, this is the number of elements in the \code{HashMap}, which we need for resizing
-approproately.
+appropriately.
 
 A back of the envelope calculation supports this claim: The \mitserver{} runs at $\SI{2400}{GHz}$,
 and with 16 threads we manage about $4M$ \code{insert}s per second in total. This means that if we
-assume that all accesses to the \code{count} field happend sequentially, each access takes
+assume that all accesses to the \code{count} field happened sequentially, each access takes
 $\frac{\SI{2400}{GHz}}{4M} = 600$ cycles per operation. While this is a lot for a single memory
 access, it is not too far off from main memory access latencies, which are often around
 $\SI{100}{ns}$~\cite{memlatency}.
@@ -216,7 +216,7 @@ The choice of allocator is also shown to have a real effect. \cref{fig:jemalloc-
 \code{HashMap::insert} benchmark while using the JeMalloc allocator (drawn lines) and the default
 system allocator (dashed lines).
 JeMalloc is optimized for multiple threads; however in this benchmark we clearly see a large
-increase in favour of the system allocator with 32 threads. This lead is however unique for all
+increase in favor of the system allocator with 32 threads. This lead is however unique for all
 other data points, with the exception of a few of the data points from the Crossbeam hash table,
 when the thread count is 96, 128, and 144.
 

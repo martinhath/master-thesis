@@ -61,9 +61,9 @@ As most programs need memory blocks of dynamic size, allocation and deallocation
 \end{definition}
 
 
-\egn{use-after-free} is the most hazardous of the three, as program behaviour is often undefined
-when freed values are read; in many language implementations undefined behaviour means that the
-entire program is illegal, and one cannot assume anything about its behaviour (see
+\egn{use-after-free} is the most hazardous of the three, as program behavior is often undefined
+when freed values are read; in many language implementations undefined behavior means that the
+entire program is illegal, and one cannot assume anything about its behavior (see
 \cref{sec:background-pl}). The consequence of \egn{use-after-free} usually ranges from reading
 values that are unchanged from the time the block was freed, to mutation of memory that has been
 reused.
@@ -77,7 +77,7 @@ may lead to these hazards.
 \egn{double-free} is technically not a memory hazard, as the operating system can check for the
 validity of pointers that are freed, although this is often not done in practice. It is not clear
 whether this is due to performance penalties of checking, or if it is primarily a legacy
-behaviour; POSIXs definition of \code{free} states that it is undefined behaviour to pass a
+behavior; POSIXs definition of \code{free} states that it is undefined behavior to pass a
 non-allocated pointer to \code{free}~\cite{posix}.
 
 We aim to show that CMR guarantees that neither of the three memory hazards are possible.
@@ -103,11 +103,11 @@ solution, having ``solved'' single threaded memory management turns out to be of
 We divide up $A$ into two disjoint parts $O \cup S$: \emph{owned} and \emph{shared} memory.  Owned
 memory is all memory which management is already handled by some system, like Rusts ownership model
 or the smart pointers of C++. Shared memory is the memory in which the structures that is not
-modelled well by other constructs live, like the nodes in a linked list.
+modeled well by other constructs live, like the nodes in a linked list.
 
-A key idea to recognise is that despite data being in Shared memory, they might themselves own data
+A key idea to recognize is that despite data being in Shared memory, they might themselves own data
 that is in Owned memory, like the binary tree in \cref{fig:rust-shared-mem}. The destruction of a
-list node containing the binary tree will utilise the system for owned memory, and make sure that
+list node containing the binary tree will utilize the system for owned memory, and make sure that
 the binary tree is cleaned up properly. It does not matter if the list node itself resided in owned
 or shared memory.  With this distinction we can reduce our problem space significantly, as we only
 have to worry about the small subset of $A$ that is shared memory.  Note that it is also possible
@@ -189,7 +189,7 @@ change the generic type.
   in memory. All roots are stored in \egn{Guards}.
 \end{definition}
 
-The \egn{Guard} is the only type that CMR defines that are different from conventinal memory
+The \egn{Guard} is the only type that CMR defines that are different from conventional memory
 management systems; they are solely used for managing the storage of the roots in the memory graph.
 
 \begin{definition}[\egn{Atomic}\label{def:atomic}]

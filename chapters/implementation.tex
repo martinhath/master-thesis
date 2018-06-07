@@ -12,10 +12,10 @@ data that CMR defines, both global and thread local;
 chapter;
 \cref{sec:impl-snapshot} explains how memory snapshotting, an important part of CMR, is
 implemented;
-\cref{sec:impl-reachability} describes the reacability analysis including important details of the
+\cref{sec:impl-reachability} describes the reachability analysis including important details of the
 Rust type system;
 we finish the chapter with \cref{sec:impl-complications} where we highlight a few of the
-complications that we encoutered during the implementation of CMR.
+complications that we encountered during the implementation of CMR.
 
 \clearpage
 
@@ -29,20 +29,20 @@ Show me your flowcharts and conceal your tables, and I shall continue to be myst
 \end{displayquote}
 
 Allocated addresses are stored in a global \code{HashSet}, \code{ALLOCS}, which uses a \code{Mutex}
-for thread synchronisation. Only addresses in \code{ALLOCS} are subject for reclamation.
+for thread synchronization. Only addresses in \code{ALLOCS} are subject for reclamation.
 \cref{sec:impl-trace} explains more about the way allocations are stored in order to preserve type
 information.
 
 Thread also stores data in \gls{tls}. Each thread maintains a \code{Vec} of pointers to their
 \code{Guard}s, such that collecting all guards is just a matter of iterating through the
-\code{Vec}, and following the pointer. Since the data is thread local, no synchronisation is needed
+\code{Vec}, and following the pointer. Since the data is thread local, no synchronization is needed
 when operating on the \code{Vec}, which makes updates cheap.
 In addition all threads store the allocations they have done since the last reclamation pass;
 these allocations are ``stolen'' by the reclaiming thread in each pass. See
 \cref{sec:impl-signalvec} for the details.
 
 One caveat of CMR is that new threads needs to register themselves before using the system. This is
-done through \code{cmr::register_thread()}. This initialises thread local data, and pushes a thread
+done through \code{cmr::register_thread()}. This initializes thread local data, and pushes a thread
 handle used in \cref{sec:impl-snapshot}. We summarize some of the problems in
 \cref{sec:impl-thread-registration}, and note that this is still a pain point of the
 implementation.
@@ -96,7 +96,7 @@ Note that by using \code{guard!}, the caller only obtains a \code{\&mut Guard<T>
 \code{Atomic} is mainly a wrapper around Rusts \code{AtomicPtr}, although the internals differ
 slightly. CMR defines its own type so that we can control the return types of certain functions.
 \cref{lst:def-atomic} shows the definition of the \code{struct}, as well as \code{cas}, the
-compare-and-swap operation, in which we utilise some Traits from the Rust standard library to
+compare-and-swap operation, in which we utilize some Traits from the Rust standard library to
 convert between types.  Implementation of remaining methods are straight forward.
 
 \input{listings/atomic}
@@ -182,7 +182,7 @@ to \code{P}, even though the conversion is not always possible in general.
 
 \subsection{Free Functions}
 
-Having looked at the types and their member functions we now look at the implemetations of
+Having looked at the types and their member functions we now look at the implementations of
 important free functions.
 
 We first look at the higher order function \code{without_reclamation}:
@@ -199,7 +199,7 @@ The function runs the given closure without having a reclamation pass happening 
 function simply grabs the reclamation lock before executing; is it however important that the
 overhead here is as low as possible, as this is used in other important functions. For this reason
 CMR also has the \code{without_reclamation_repeat} function, with attempts to run the closure
-without any synchronization; if a reclamation pass happend while running, we rerun the function.
+without any synchronization; if a reclamation pass happened while running, we rerun the function.
 
 With the ability to run arbitrary code without a reclamation pass happening in between we can
 implement \code{guard}, which is \proc{Load-Atomic} (\cref{eq:load-atomic}).
@@ -209,7 +209,7 @@ pub fn guard<'a, T>(guard: &'a mut Guard<T>, a: &Atomic<T>) -> NullablePtr<'a, T
                              guard.inner = ptr::raw(p);
                              p }) }
 \end{lstlisting}
-Since we guarantee that no pass happend in between reading the \code{Atomic} and protecting the
+Since we guarantee that no pass happened in between reading the \code{Atomic} and protecting the
 data it pointed to in the \code{Guard}, we know that the data is still valid.
 
 
@@ -276,7 +276,7 @@ semantics the results from \cref{sec:cmr-correctness} holds for the Rust impleme
 
 \section{Snapshot\label{sec:impl-snapshot}}
 
-For obtaining a snapshot of the process memory CMR utilises a operating system features offered
+For obtaining a snapshot of the process memory CMR utilizes a operating system features offered
 by POSIX compliant systems: \emph{forking}.
 Calling \code{fork()} makes a copy of the current process, called the \emph{child process}.
 The return value of \code{fork()} determined whether we are in the child or parent process.
@@ -389,7 +389,7 @@ fn mark_and_sweep(mut cursor: Cursor<&mut [u8]>, roots: Vec<TraitObject>) -> usi
 \subsection{Trace\label{sec:impl-trace}}
 
 Finding pointers in arbitrary data types might involve significant work since the size of the data
-types can be arbitrarily large. In addition, memory might not be initialised, and false positives
+types can be arbitrarily large. In addition, memory might not be initialized, and false positives
 might occur if we are not careful. Instead of scanning through the memory block linearly, CMR
 defines the Trait \code{Trace}, which all data types that is stored in shared memory must
 implement.  A type implementing \code{Trace} knows a bound on how many shared memory pointers it
@@ -482,7 +482,7 @@ only released when the background thread is fully done with the reclamation pass
 
 \section{Complications\label{sec:impl-complications}}
 
-A number of implementation complications arised while deleveopting CMR\@. We look at a few of them
+A number of implementation complications arose while developing CMR\@. We look at a few of them
 here.
 
 \subsection{Allocation Lock\label{sec:alloc-lock}}
@@ -494,14 +494,14 @@ include \code{malloc()}. As such, allocation in signal handlers is not safe, and
 deadlock bugs. This itself was not a large problem for CMR, as its signal handler did not require
 any allocation. However, as threads are frozen by the reclaimer in a signal handler, it is also not
 safe for the \emph{reclaimer} to call \code{malloc}, despite not being in a signal handler itself.
-This is because some thread may be in the process of allocating memory, and have aquired a lock
+This is because some thread may be in the process of allocating memory, and have acquired a lock
 internal to libc, right before being signaled. The thread is still holding the libc lock and is
 frozen in its signal handler by the consolidator, which prevents \emph{all threads}, even those
 oblivious to CMR, from allocating.
 
 This problem is not solved properly by CMR, but its effects are mitigated by wrapping the general
-allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be aquired by
-the reclamating thread.  In order to be more thread friendly we do not grab the global lock every
+allocator in Rust to go through yet another lock, the \code{alloc_lock}, which can be acquired by
+the reclaiming thread.  In order to be more thread friendly we do not grab the global lock every
 time we allocate; instead each thread flips a bit when they allocate, to signal to other threads
 that they might be holding some internal lock. Upon exit they flip the bit back. When some other
 thread wants to make sure that no thread is holding the lock, it flips a flag, and waits for all
@@ -509,7 +509,7 @@ threads to have their bit set to zero. This is effectively a read-write lock.
 
 The locking scheme prevents most allocations of deadlocking, but not all. Rust uses \gls{pthreads}
 internally for thread handling on Linux, which allocates internally, both in \code{spawn} and
-\code{join}. The former may be circumvented by aquiring the allocation lock before calling it, but
+\code{join}. The former may be circumvented by acquiring the allocation lock before calling it, but
 this is no solution for the latter, since the thread may depend on allocating before exiting.
 
 
@@ -522,7 +522,7 @@ process. However, due to the asynchronous nature of signals we run into problems
 the middle of some operation on the \code{Vec} when it is signaled, since the vector is copied and
 \code{clear()}ed in the signal handler.
 
-To handle this compilication we made \code{SignalVec}, a \code{Vec} that supports asynchronous
+To handle this complication we made \code{SignalVec}, a \code{Vec} that supports asynchronous
 \code{clear()}s. The implementation is a standard \code{Vec} implementation except that we use
 \code{cas} to increment the \code{length} field of the \code{SignalVec}, such that we can detect
 the case where \code{clear()} was called in the middle of \code{push}. Since we are writing to the
@@ -535,8 +535,8 @@ to only work in the exact use case that CMR requires.
 Thread startup and shutdown has shown to be a difficult problem to handle, especially when
 carefully managing when threads are allowed to allocate. Early attempts were made to automate this
 using lazy initialization of thread local variables, but controlling allocations in these, or
-guaranteeing the order of initialization was problematic. Testing with continously checking whether
-the thread was initialized in CMR methods showed that it imposed too much overhead for the stragety
+guaranteeing the order of initialization was problematic. Testing with continuously checking whether
+the thread was initialized in CMR methods showed that it imposed too much overhead for the strategy
 to be viable.
 
 

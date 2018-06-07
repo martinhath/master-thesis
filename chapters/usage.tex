@@ -22,8 +22,8 @@ implementations will be considered in sequence.
 node.}
 \end{figure}
 
-We begin by looking at an implementation of a conurrent stack, which is arguably the simplest
-concurrent data strucutre. The stack is the well known Treiber Stack
+We begin by looking at an implementation of a concurrent stack, which is arguably the simplest
+concurrent data structure. The stack is the well known Treiber Stack
 from~\cite{treiber1986systems}.
 
 The definitions of the \code{Stack} and \code{Node} structs and the two most important operations
@@ -45,7 +45,7 @@ new \code{node} \coderef{ST7}, which is done outside the retry loop so that we o
 allocate one time per call to \code{push}. Now we enter the retry loop, which we repeat until we
 succeed in changing the top pointer of the stack to our new node.
 The top node is read \coderef{ST8}, and the \code{next} pointer of the new node is set to the head
-\coderef{ST9}. If we succeed of chaning the \code{top}  pointer of the stack to our new node, we
+\coderef{ST9}. If we succeed of changing the \code{top}  pointer of the stack to our new node, we
 break out of the loop and return \coderef{ST10}. If not, we retry until we do.
 
 
@@ -78,7 +78,7 @@ the \code{cas} operation.
 
 The queue implemented is based on the well known Michael-Scott Queue from~\cite{michael1996simple}.
 The idea behind the queue is to have a sentinel node as the first node of the queue in order to
-avoid difficult edge cases when the queue is empty. The sentinel node is the greyed out node in
+avoid difficult edge cases when the queue is empty. The sentinel node is the grayed out node in
 \cref{fig:msqueue}.
 
 The \code{Node} and \code{MsQueue} struct definitions are omitted, as they are very similar to
@@ -129,7 +129,7 @@ shown in \cref{fig:list-remove}. Let there be two threads in the system $T\sb{1}
 and let A, B, and C be three consecutive nodes in the list. If $T\sb{1}$ wants to remove the B
 node, there is a small window in which $T\sb{2}$ may insert a new node, X, between B and C. When
 $T\sb{1}$s \code{cas} operation succeeds --- note that \code{A.next} was not touched by $T\sb{2}$
---- it will accidently swing the pointer past the new node X without noticing. This is a variant of
+--- it will accidentally swing the pointer past the new node X without noticing. This is a variant of
 the ABA problem (\cref{sec:aba-problem}).
 
 \begin{figure}[ht]
@@ -155,7 +155,7 @@ and C, since it reads the tag of B, realizing that it was deleted.
 
 Many of the most interesting operations on the List involves iterating through the list. Due to the
 ownership and lifetime rules that Rust imposes, it may be tricky to implement typical iteration
-since due to the pointer juggeling and the lifetime issues that arises. For this reason, the API
+since due to the pointer juggling and the lifetime issues that arises. For this reason, the API
 uses an abstraction for iterating through the list: \code{Entry}.
 
 \begin{figure}[ht]
@@ -166,7 +166,7 @@ An \code{Entry} is like a pointer into the list, which can \code{step()} to the 
 pointer to the \code{current()} node, \code{remove} the current node, \code{insert_between} two
 nodes, and find nodes which data satisfies arbitrary closures \code{Fn(T) -> bool}.  Since there is
 some overhead in declaring a \code{Guard}, \code{Entry} contains references to \code{Guard}s rather
-than the \code{Guard}s themselves. This makes construting a \code{Guard} nearly free.  Another
+than the \code{Guard}s themselves. This makes constructing a \code{Guard} nearly free.  Another
 implication of this is that \code{Entry} is movable in memory (as \code{Guard} is not), which can
 be practical.
 
@@ -244,13 +244,13 @@ parenthesis.\label{fig:split-order-list}}
 
 \cref{fig:split-order-list} shows the split-ordered list with a table size of $4$. The nodes in the
 list are ordered by the reverse of their hash (shown in parenthesis). Given a node \code{n}, we
-find the sentinel node that should preceed it in the list by taking \code{hash(n) \% table_size}.
+find the sentinel node that should precede it in the list by taking \code{hash(n) \% table_size}.
 Note that this is not the reverse hash. For instance, inserting a node where \code{hash(n) == 7},
 we look in bucket \code{7 \% 4 == 3}, and iterate from sentinel node 3. It is only in the iteration
 where we insert our new node that we use the reverse hash.  Inserting a node where \code{hash(n) ==
 10}, we would get \code{bucket == 2}, which is \code{null}, so we need to insert the sentinel node
 first. This sentinel node would be inserted in between the \code{h} and \code{e} node, since
-sentinel nodes preceed data nodes with the same reverse hash.
+sentinel nodes precede data nodes with the same reverse hash.
 
 Next we look at the most important operations in the hash table: \code{contains} and \code{insert}.
 Removals are similar to in the List; we remove the data node from the list. Sentinel nodes are
@@ -281,7 +281,7 @@ text.
 \input{listings/hashmap-insert}
 
 We start out by hashing the \code{key}, finding the reverse hash \coderef{HI3} and the bucket of
-the sentienl node, and a pointer to the node is acquired \coderef{HI4}. We declare five (!)
+the sentinel node, and a pointer to the node is acquired \coderef{HI4}. We declare five (!)
 \code{Guard}s \coderef{HI5}, and \code{alloc} our new node \coderef{HI7}.
 Next we make our \code{entry} from the sentinel \coderef{HI9}, and find the correct place to put
 our new node \coderef{HI10}. The new node is put before any other nodes with the same hash, but
@@ -309,11 +309,11 @@ Finding the sentinel is similar to \code{insert} \coderef{HR3-HR7}, but in \code
 \code{seek_with_opt} which allows for early termination of the search, since we should stop if we
 reach a node with a larger hash than the one we want to remove. We test the result of the search
 \coderef{HR14} and branch appropriately, and call \code{Entry::delete} \coderef{HR18} if we found
-the node we are looking for. Only if we suceed in removing the node we break the loop.
+the node we are looking for. Only if we succeed in removing the node we break the loop.
 
 \input{listings/hashmap-remove}
 
-An imporotant detail about \code{Entry::remove} is that the actual \code{cas} to remove the node
+An important detail about \code{Entry::remove} is that the actual \code{cas} to remove the node
 from the list does not need to be successful for the operation to be considered as such; it is
 sufficient for the node to be tagged as removed. This is due to the fact that if the node is tagged
 as removed, any thread \code{step}ping over it will remove it.
