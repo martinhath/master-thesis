@@ -14,7 +14,7 @@ chapter;
 implemented;
 \cref{sec:impl-reachability} describes the reachability analysis including important details of the
 Rust type system;
-\cref{sec:impl-communication} mentines how communication between the parent and child prrocess;
+\cref{sec:impl-communication} mentions how communication between the parent and child process;
 we finish the chapter with \cref{sec:impl-complications} where we highlight a few of the
 complications that we encountered during the implementation of CMR.
 
@@ -309,10 +309,10 @@ fn signal_threads_except_self() -> usize {
 Using \gls{pthreads} signals we register a signal handler for the \code{SIGUSR1} signal with the
 \code{sigaction} call, and the reclaiming thread signals all threads with \code{pthread_sigqueue}.
 This is done through the Rust library \code{libc}, which provides Rust bindings to the C standard
-library. The procedure for signalling all registered threads is shown in
-\cref{lst:thread-signaling}. Here we actually do two things at once: in addition to signalling the
+library. The procedure for signaling all registered threads is shown in
+\cref{lst:thread-signaling}. Here we actually do two things at once: in addition to signaling the
 threads, we remove the thread handlers that we fail to signal. The procedure returns the number of
-threads we successfully signalled, so the caller knows how many threads to expect being in the
+threads we successfully signaled, so the caller knows how many threads to expect being in the
 signal handler. Pseudo code for the signal handler is shown in \cref{lst:signal-handler}.
 
 \begin{figure}[ht]
@@ -334,9 +334,9 @@ sh_enter_counter.fetch_sub(1)       (*\label{c:sh-leave}*)
 
 
 We use \code{sh_enter_counter} to keep track of how many threads are present in the signal handler;
-the reclaiming thread knows how many threads it successfully signalled, so it knows how many threads to
+the reclaiming thread knows how many threads it successfully signaled, so it knows how many threads to
 expect. \coderef{SH\ref*{c:sh-reg}} registers a threads presence, in addition to giving each thread
-a unique index in the range $[0, n)$, where $n$ is the number of threads signalled. This is used
+a unique index in the range $[0, n)$, where $n$ is the number of threads signaled. This is used
 in~\coderef{SH\ref*{c:sh-write}}, where each thread writes out their guards and allocations into
 the global vector \code{thread_datas}. We then register that we have written our
 data~\coderef{SH\ref*{c:sh-done}}, and wait for the reclaiming thread to unfreeze
